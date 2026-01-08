@@ -290,3 +290,200 @@ tools:
     required: [tabId]
     properties:
       tabId: *tabId
+
+  scroll:
+    description: >-
+      Scroll the page. Supports three modes: (1) direction-based scrolling 
+      by full page height ("up" or "down"), (2) scroll element into view 
+      using CSS selector or XPath, or (3) scroll to specific x/y coordinates.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+      direction:
+        type: string
+        description: Scroll by full page height ("up" or "down")
+        enum: [up, down]
+      <<: *selectorAndXpath
+      x:
+        type: number
+        description: X coordinate to scroll to
+      y:
+        type: number
+        description: Y coordinate to scroll to
+      behavior:
+        type: string
+        description: Scroll behavior
+        default: smooth
+        enum: [auto, smooth]
+
+  evaluate:
+    description: >-
+      Execute arbitrary JavaScript code in the page context. Supports async/await 
+      for asynchronous operations. Returns serialized result with circular 
+      reference handling and DOM element representation.
+    required: [tabId, code]
+    properties:
+      tabId: *tabId
+      code:
+        type: string
+        description: JavaScript code to execute (can use async/await)
+
+  get_attribute:
+    description: >-
+      Get a specific attribute value from an element. Returns the attribute 
+      value and whether it exists on the element.
+    required: [tabId, attribute]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      attribute:
+        type: string
+        description: Name of the attribute to get
+
+  get_computed_style:
+    description: >-
+      Get computed CSS styles for an element. Can specify which properties 
+      to return, or returns common properties by default (display, visibility, 
+      opacity, position, width, height, margin, padding, color, etc.).
+    required: [tabId]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      properties:
+        type: array
+        items:
+          type: string
+        description: >-
+          CSS property names to get. If not specified, returns common 
+          properties like display, visibility, opacity, position, etc.
+
+  get_text:
+    description: >-
+      Extract visible text content from an element. Uses innerText which 
+      respects CSS visibility. If no selector/xpath provided, returns all 
+      visible text from the page body.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+
+  wait_for_element:
+    description: >-
+      Wait for an element to appear in the DOM with configurable timeout 
+      and visibility check. Polls every 100ms until element is found or 
+      timeout is reached. Timeout is auto-extended on the command level.
+    required: [tabId]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Maximum time to wait in milliseconds
+        default: 5000
+        minimum: 100
+        maximum: 60000
+      visible:
+        type: boolean
+        description: If true, wait for element to be visible, not just in DOM
+        default: true
+
+  type:
+    description: >-
+      Human-like character-by-character typing with configurable delay between 
+      keystrokes. Simulates keydown, keypress, input, and keyup events for 
+      each character. If no selector provided, types to currently focused element.
+      Timeout is auto-extended based on text length and delay.
+    required: [tabId, text]
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      text:
+        type: string
+        description: Text to type character by character
+      delay:
+        type: number
+        description: Delay in milliseconds between keystrokes
+        default: 50
+        minimum: 0
+        maximum: 1000
+
+  select_text:
+    description: >-
+      Select text within an element. Works with input/textarea elements 
+      using setSelectionRange, and regular elements using Range API. 
+      Returns the selected text.
+    required: [tabId]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      start:
+        type: integer
+        description: Start character index (0-based)
+        default: 0
+      end:
+        type: integer
+        description: End character index (defaults to end of text)
+
+  get_selected_text:
+    description: >-
+      Get the currently selected text on the page. Returns the selection 
+      as a string along with its length.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+
+  # ============ AI-FOCUSED TOOLS ============
+
+  page_structure:
+    description: >-
+      Get a hierarchical summary of the page structure optimized for LLM 
+      understanding. Returns headings hierarchy, navigation areas with links, 
+      forms with fields, main content area, ARIA landmarks, and counts of 
+      interactive elements. Much more useful than raw DOM for AI comprehension.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+
+  labeled_screenshot:
+    description: >-
+      Add numbered labels to all visible interactive elements on the page. 
+      After calling this, take a screenshot to capture the labeled view. 
+      Returns a list of elements with their index numbers, selectors, and 
+      bounding boxes. Use clear_labels to remove overlays when done.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+
+  clear_labels:
+    description: >-
+      Remove the numbered label overlays created by labeled_screenshot.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+
+  accessibility_tree:
+    description: >-
+      Get the accessibility tree for the page or a specific element. Returns 
+      a hierarchical structure with roles, accessible names, and states - 
+      similar to what screen readers see. Useful for understanding page 
+      structure without visual context.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      maxDepth:
+        type: integer
+        description: Maximum depth to traverse (default 5)
+        default: 5
+        minimum: 1
+        maximum: 10
+      maxNodes:
+        type: integer
+        description: Maximum number of nodes to return (default 500)
+        default: 500
+        minimum: 10
+        maximum: 2000

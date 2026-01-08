@@ -180,16 +180,42 @@ Then ask Claude to interact with web pages:
 
 ## Available MCP Tools
 
+### Navigation & Tab Control
 - `navigate` - Navigate to URL
 - `back` - Browser back button
 - `forward` - Browser forward button
 - `reload` - Reload the current page (similar to pressing F5)
+- `scroll` - Scroll page by direction ("up"/"down"), to element, or to coordinates
+
+### Element Interaction
 - `click` - Click elements (uses first matching element, returns unique selector)
 - `hover` - Hover over elements (uses first matching element, returns unique selector)
 - `fill` - Fill input fields (uses first matching element, returns unique selector)
-- `select` - Select dropdown options (HTML `<select>` only, uses first matching element, returns unique selector)
-- `keypress` - Send keyboard events to the page or specific elements (supports modifier keys)
-- `elements` - Query all elements matching a CSS selector or XPath with optional visibility filtering
+- `select` - Select dropdown options (HTML `<select>` only, uses first matching element)
+- `keypress` - Send keyboard events with modifier key support
+- `type` - Human-like character-by-character typing with delays between keystrokes
+- `focus` - Focus an element
+- `blur` - Remove focus from an element
+
+### Element Querying
+- `elements` - Query all elements matching a CSS selector or XPath with visibility filtering
+- `get_text` - Extract visible text content (use `selector: "body"` for all page text)
+- `get_attribute` - Get specific attribute value from an element
+- `get_computed_style` - Get computed CSS styles for an element
+- `wait_for_element` - Wait for elements to appear with configurable timeout
+
+### Text Selection
+- `select_text` - Select text within an element
+- `get_selected_text` - Get currently selected text on the page
+
+### JavaScript & Evaluation
+- `evaluate` - Execute arbitrary JavaScript with async/await support
+
+### AI-Focused Tools
+- `page_structure` - Get hierarchical page summary (headings, nav, forms, landmarks)
+- `labeled_screenshot` - Add numbered labels to interactive elements for vision LLMs
+- `clear_labels` - Remove label overlays
+- `accessibility_tree` - Get accessibility tree (roles, names, states) like screen readers see
 
 **Note on Selectors**: Tools that accept a `selector` parameter (`click`, `hover`, `fill`, `select`, `keypress`, `screenshot`, `dom`) will only operate on the **first element** that matches the CSS selector. The tool response includes the unique selector of the actual element that was used, which may include an auto-generated ID if the element didn't have one.
 
@@ -231,6 +257,54 @@ Examples:
 // Close tab (Ctrl+W or Cmd+W on Mac)
 { "key": "Meta+w" }
 ```
+
+### Scroll Tool
+
+The `scroll` tool supports three modes:
+
+```json
+// Scroll down by one full page height
+{ "direction": "down" }
+
+// Scroll element into view
+{ "selector": "#footer" }
+
+// Scroll to specific coordinates
+{ "x": 0, "y": 1000 }
+```
+
+### Type Tool
+
+Human-like character-by-character typing with delays:
+
+```json
+{ "selector": "#search-input", "text": "Hello World", "delay": 50 }
+```
+
+**Note**: Timeout is automatically extended based on text length and delay.
+
+### Wait For Element Tool
+
+Wait for elements to appear with configurable timeout:
+
+```json
+{ "selector": "#loading-complete", "timeout": 10000, "visible": true }
+```
+
+### Evaluate Tool
+
+Execute JavaScript with async/await support:
+
+```json
+{ "code": "return document.title" }
+{ "code": "return await fetch('/api/data').then(r => r.json())" }
+```
+
+### Error Handling Improvements
+
+- **Element-not-found errors** now include match count and hints for similar elements
+- **Timeout errors** include selector/xpath info for easier debugging
+- **Auto-extended timeouts**: `wait_for_element` and `type` automatically extend command timeout based on their parameters
 
 ### MCP Resources
 

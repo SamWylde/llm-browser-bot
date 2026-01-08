@@ -7,7 +7,7 @@ export class ToolHandler {
   constructor(
     private commandHandler: BrowserCommandHandler,
     private tabRegistry: TabRegistry
-  ) {}
+  ) { }
 
 
   public getTools() {
@@ -55,6 +55,24 @@ export class ToolHandler {
           if (validatedArgs.delay && !validatedArgs.timeout) {
             // Add 2 seconds to the delay for processing overhead
             validatedArgs.timeout = Math.max(5000, validatedArgs.delay + 2000);
+          }
+          result = await this.commandHandler.callTool(name, validatedArgs);
+          break;
+        case 'wait_for_element':
+          // Auto-extend command timeout based on wait timeout parameter
+          if (validatedArgs.timeout) {
+            // Add 2 seconds for processing overhead
+            validatedArgs._commandTimeout = validatedArgs.timeout + 2000;
+          }
+          result = await this.commandHandler.callTool(name, validatedArgs);
+          break;
+        case 'type':
+          // Auto-extend timeout based on text length and delay
+          if (validatedArgs.text) {
+            const delay = validatedArgs.delay ?? 50; // Default to 50ms if not provided
+            const typingTime = validatedArgs.text.length * delay;
+            // Add 5 seconds for focus, event processing overhead
+            validatedArgs._commandTimeout = Math.max(5000, typingTime + 5000);
           }
           result = await this.commandHandler.callTool(name, validatedArgs);
           break;
@@ -118,7 +136,7 @@ export class ToolHandler {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({error: { message: error.message }}, null, 2)
+            text: JSON.stringify({ error: { message: error.message } }, null, 2)
           }
         ]
       };

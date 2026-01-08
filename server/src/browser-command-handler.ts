@@ -39,7 +39,7 @@ export class BrowserCommandHandler {
   constructor(
     private browserWebSocketManager: BrowserWebSocketManager,
     private tabRegistry: TabRegistry
-  ) {}
+  ) { }
 
   setClientInfo(info: { name?: string; version?: string }) {
     this.clientInfo = info;
@@ -58,12 +58,12 @@ export class BrowserCommandHandler {
     if (toolName === 'new_tab') {
       return this.newTab(args?.browser);
     }
-    
+
     // Map tool names to command names (most are the same)
     const commandMap: { [key: string]: string } = {
       'console_logs': 'getLogs'
     };
-    
+
     const command = commandMap[toolName] || toolName;
     return this.executeCommand(command, args);
   }
@@ -202,12 +202,24 @@ export class BrowserCommandHandler {
 
     // Setup promise for response
     const responsePromise = new Promise<any>((resolve, reject) => {
-      // Set timeout (default 5 seconds)
+      // Use _commandTimeout if set by tool-handler (for wait_for_element, type), 
+      // then params.timeout, then default 5 seconds
+      const timeoutMs = params._commandTimeout || params.timeout || 5000;
+
+      // Set timeout
       const timeout = setTimeout(() => {
         this.pendingCommands.delete(commandId);
         logger.warn(`Command timeout for ${command} (${commandId})`);
-        reject(new Error(`Command timeout: ${command}`));
-      }, params.timeout || 5000);
+
+        // Include selector/xpath in error message for easier debugging
+        let errorMessage = `Command timeout: ${command}`;
+        if (params.selector) {
+          errorMessage += ` (selector: ${params.selector})`;
+        } else if (params.xpath) {
+          errorMessage += ` (xpath: ${params.xpath})`;
+        }
+        reject(new Error(errorMessage));
+      }, timeoutMs);
 
       this.pendingCommands.set(commandId, { resolve, reject, timeout, tabId });
       logger.log(`Registered pending command: ${command} (${commandId})`);

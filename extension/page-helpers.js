@@ -172,7 +172,7 @@ function findAllElements(selector, xpath) {
   }
   try {
     const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-    return Array.from({length: result.snapshotLength}, (_, i) => result.snapshotItem(i));
+    return Array.from({ length: result.snapshotLength }, (_, i) => result.snapshotItem(i));
   }
   catch (e) {
     throw new Error(`Invalid XPath: ${e.message}`);
@@ -270,12 +270,12 @@ function isElementVisible(element, rect, computedStyle) {
       if (rect.bottom < parentRect.top || rect.top > parentRect.bottom || rect.right < parentRect.left || rect.left > parentRect.right) {
         // Before returning false, check if the element is actually visible using elementsFromPoint
         const elementsAtPoint = document.elementsFromPoint(centerX, centerY);
-        
+
         // If the element is in the elements chain at its center point, it's visible
         if (elementsAtPoint.includes(element)) {
           continue; // Skip this parent check and continue checking other parents
         }
-        
+
         return false;
       }
     }
@@ -306,8 +306,82 @@ function respondWith(obj, selector, xpath) {
 function respondWithError(code, message, selector, xpath) {
   return respondWith({ error: { code, message } }, selector, xpath);
 }
-function elementNotFound(selector, xpath) {
-  return respondWithError('ELEMENT_NOT_FOUND', 'Element not found', selector, xpath);
+function findSimilarElements(selector, xpath) {
+  const hints = [];
+
+  try {
+    if (selector) {
+      // Try to parse the selector to find similar elements
+      const parts = selector.match(/^([#.]?)([a-zA-Z0-9_-]+)/);
+      if (parts) {
+        const [, prefix, name] = parts;
+
+        if (prefix === '#') {
+          // Look for elements with similar IDs
+          const allWithId = document.querySelectorAll('[id]');
+          const similar = Array.from(allWithId)
+            .filter(el => el.id.toLowerCase().includes(name.toLowerCase()) ||
+              name.toLowerCase().includes(el.id.toLowerCase().slice(0, 5)))
+            .slice(0, 3)
+            .map(el => `#${el.id}`);
+          if (similar.length) hints.push(`Similar IDs: ${similar.join(', ')}`);
+        } else if (prefix === '.') {
+          // Look for elements with similar classes
+          const allWithClass = document.querySelectorAll('[class]');
+          const similar = Array.from(allWithClass)
+            .flatMap(el => Array.from(el.classList))
+            .filter(cls => cls.toLowerCase().includes(name.toLowerCase()))
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .slice(0, 3)
+            .map(cls => `.${cls}`);
+          if (similar.length) hints.push(`Similar classes: ${similar.join(', ')}`);
+        } else {
+          // Tag name - check if tag exists
+          const tagElements = document.getElementsByTagName(name);
+          if (tagElements.length === 0) {
+            hints.push(`No <${name}> elements on page`);
+          } else {
+            hints.push(`Found ${tagElements.length} <${name}> elements but none match full selector`);
+          }
+        }
+      }
+    }
+
+    if (xpath) {
+      // For XPath, provide general hints
+      if (xpath.includes('contains(')) {
+        hints.push('Tip: contains() is case-sensitive');
+      }
+      if (xpath.includes('text()')) {
+        hints.push('Tip: text() only matches direct text nodes, not nested text');
+      }
+    }
+  } catch (e) {
+    // Ignore errors in hint generation
+  }
+
+  return hints;
+}
+
+function elementNotFound(selector, xpath, matchCount = 0) {
+  const hints = findSimilarElements(selector, xpath);
+  let message = 'Element not found';
+
+  if (matchCount === 0) {
+    message = 'No matching elements found';
+  }
+
+  const errorDetails = {
+    code: 'ELEMENT_NOT_FOUND',
+    message,
+    matchCount
+  };
+
+  if (hints.length > 0) {
+    errorDetails.hints = hints;
+  }
+
+  return respondWith({ error: errorDetails }, selector, xpath);
 }
 function requireSelectorOrXpath(selector, xpath) {
   return respondWithError('SELECTOR_OR_XPATH_REQUIRED', 'Selector or XPath parameter required', selector, xpath);
@@ -325,7 +399,7 @@ const helpers = {
   _connectionStateChanged: ({ status, connected }) => {
     // Remove existing connection classes
     document.body.classList.remove('kapture-connected', 'kapture-connecting');
-    
+
     // Add appropriate class based on status
     if (status === 'connected') {
       document.body.classList.add('kapture-connected');
@@ -333,13 +407,13 @@ const helpers = {
       document.body.classList.add('kapture-connecting');
     }
     // No class for disconnected state
-    
+
     return { success: true };
   },
 
   // tool calls
   getTabInfo,
-  dom: ({selector, xpath}) => {
+  dom: ({ selector, xpath }) => {
     if (!selector && !xpath) {
       return respondWith({ html: document.body.outerHTML });
     }
@@ -349,14 +423,14 @@ const helpers = {
 
     return respondWith({ html: element.outerHTML }, selector, xpath);
   },
-  elementsFromPoint: ({x, y}) => {
+  elementsFromPoint: ({ x, y }) => {
     if (typeof x !== 'number' || typeof y !== 'number') {
       return respondWithError('XY_REQUIRED', 'Both x and y coordinates are required');
     }
     const elements = document.elementsFromPoint(x, y);
     return respondWith({ x, y, elements: elements.map(getElementData) });
   },
-  elements: ({selector, xpath, visible = 'all'}) => {
+  elements: ({ selector, xpath, visible = 'all' }) => {
     if (!selector && !xpath) return requireSelectorOrXpath();
 
     let elements;
@@ -372,17 +446,17 @@ const helpers = {
       const filterVisible = String(visible) === 'true';
       elements = elements.filter(el => el.visible === filterVisible);
     }
-    return respondWith({elements: elements, visible: visible !== 'all' ? visible : undefined}, selector, xpath);
+    return respondWith({ elements: elements, visible: visible !== 'all' ? visible : undefined }, selector, xpath);
   },
-  element: ({selector, xpath, visible = 'all'}) => {
-    const result = helpers.elements({selector, xpath, visible});
+  element: ({ selector, xpath, visible = 'all' }) => {
+    const result = helpers.elements({ selector, xpath, visible });
     if (result.error) return result;
     if (!result.elements.length) return elementNotFound(selector, xpath);
     result.element = result.elements[0];
     delete result.elements;
     return result;
   },
-  focus: ({selector, xpath}) => {
+  focus: ({ selector, xpath }) => {
     if (!selector && !xpath) return requireSelectorOrXpath();
 
     let element;
@@ -402,8 +476,8 @@ const helpers = {
     const focusableElements = ['input', 'textarea', 'select', 'button', 'a'];
     const tagName = element.tagName.toLowerCase();
     const isFocusable = focusableElements.includes(tagName) ||
-                       element.hasAttribute('tabindex') ||
-                       element.isContentEditable;
+      element.hasAttribute('tabindex') ||
+      element.isContentEditable;
 
     if (!isFocusable) {
       // Still return success but with a warning
@@ -415,7 +489,7 @@ const helpers = {
 
     return respondWith({ focused: true }, selector, xpath);
   },
-  fill: ({selector, xpath, value}) => {
+  fill: ({ selector, xpath, value }) => {
     if (!selector && !xpath) return requireSelectorOrXpath();
 
     const element = findAllElements(selector, xpath)[0];
@@ -455,7 +529,7 @@ const helpers = {
 
     return respondWith({ filled: true }, selector, xpath);
   },
-  select: ({selector, xpath, value}) => {
+  select: ({ selector, xpath, value }) => {
     if (!selector && !xpath) return requireSelectorOrXpath();
 
     const element = findAllElements(selector, xpath)[0];
@@ -480,7 +554,7 @@ const helpers = {
 
     return respondWith({ selected: true }, selector, xpath);
   },
-  blur: ({selector, xpath}) => {
+  blur: ({ selector, xpath }) => {
     if (!selector && !xpath) return requireSelectorOrXpath();
 
     let element;
@@ -503,7 +577,7 @@ const helpers = {
 
     return respondWith({ blurred: true }, selector, xpath);
   },
-  _cursor: ({show}) => {
+  _cursor: ({ show }) => {
     const cursorId = 'kapture-cursor';
     let cursor = document.getElementById(cursorId);
 
@@ -554,7 +628,7 @@ const helpers = {
       return respondWithError('CURSOR_ERROR', e.message);
     }
   },
-  _moveMouseSVG: ({x, y}) => {
+  _moveMouseSVG: ({ x, y }) => {
     if (typeof x !== 'number' || typeof y !== 'number') {
       return respondWithError('XY_REQUIRED', 'Both x and y coordinates are required');
     }
@@ -569,6 +643,797 @@ const helpers = {
       return respondWith({ moved: true, x, y });
     } catch (e) {
       return respondWithError('MOVE_MOUSE_SVG_ERROR', e.message);
+    }
+  },
+
+  // ============ NEW TOOLS ============
+
+  scroll: ({ selector, xpath, direction, x, y, behavior = 'smooth' }) => {
+    try {
+      // Priority 1: Scroll by direction (full page height)
+      if (direction) {
+        const pageHeight = window.innerHeight;
+        const scrollAmount = direction === 'up' ? -pageHeight : pageHeight;
+        window.scrollBy({
+          top: scrollAmount,
+          behavior: behavior
+        });
+        return respondWith({
+          scrolled: true,
+          direction,
+          amount: Math.abs(scrollAmount),
+          newPosition: { x: window.scrollX, y: window.scrollY }
+        });
+      }
+
+      // Priority 2: Scroll element into view
+      if (selector || xpath) {
+        let element;
+        try {
+          element = findAllElements(selector, xpath)[0];
+        } catch (e) {
+          const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+          return respondWithError(errorCode, e.message, selector, xpath);
+        }
+
+        if (!element) return elementNotFound(selector, xpath);
+
+        element.scrollIntoView({
+          behavior: behavior,
+          block: 'center',
+          inline: 'nearest'
+        });
+
+        const rect = element.getBoundingClientRect();
+        return respondWith({
+          scrolled: true,
+          elementPosition: { x: rect.x, y: rect.y }
+        }, selector, xpath);
+      }
+
+      // Priority 3: Scroll to coordinates
+      if (typeof x === 'number' || typeof y === 'number') {
+        window.scrollTo({
+          left: x ?? window.scrollX,
+          top: y ?? window.scrollY,
+          behavior: behavior
+        });
+        return respondWith({
+          scrolled: true,
+          newPosition: { x: window.scrollX, y: window.scrollY }
+        });
+      }
+
+      return respondWithError('SCROLL_PARAMS_REQUIRED',
+        'Provide direction ("up"/"down"), selector/xpath, or x/y coordinates');
+    } catch (e) {
+      return respondWithError('SCROLL_ERROR', e.message);
+    }
+  },
+
+  evaluate: async ({ code }) => {
+    if (!code) {
+      return respondWithError('CODE_REQUIRED', 'JavaScript code is required');
+    }
+
+    try {
+      // Create async function wrapper to support await
+      const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
+      const fn = new AsyncFunction(code);
+      const result = await fn();
+
+      // Serialize the result for safe transmission
+      const serialized = serializeValue(result);
+
+      return respondWith({
+        result: serialized,
+        type: typeof result
+      });
+    } catch (e) {
+      return respondWith({
+        error: {
+          code: 'EVALUATION_ERROR',
+          message: e.message,
+          stack: e.stack
+        }
+      });
+    }
+  },
+
+  get_attribute: ({ selector, xpath, attribute }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+    if (!attribute) {
+      return respondWithError('ATTRIBUTE_REQUIRED', 'Attribute name is required');
+    }
+
+    let element;
+    try {
+      element = findAllElements(selector, xpath)[0];
+    } catch (e) {
+      const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+      return respondWithError(errorCode, e.message, selector, xpath);
+    }
+
+    if (!element) return elementNotFound(selector, xpath);
+
+    const value = element.getAttribute(attribute);
+    return respondWith({
+      attribute,
+      value,
+      exists: value !== null
+    }, selector, xpath);
+  },
+
+  get_computed_style: ({ selector, xpath, properties }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+
+    let element;
+    try {
+      element = findAllElements(selector, xpath)[0];
+    } catch (e) {
+      const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+      return respondWithError(errorCode, e.message, selector, xpath);
+    }
+
+    if (!element) return elementNotFound(selector, xpath);
+
+    const computedStyle = window.getComputedStyle(element);
+    let styles = {};
+
+    if (properties && Array.isArray(properties) && properties.length > 0) {
+      // Return only requested properties
+      for (const prop of properties) {
+        styles[prop] = computedStyle.getPropertyValue(prop);
+      }
+    } else {
+      // Return common useful properties
+      const commonProps = [
+        'display', 'visibility', 'opacity', 'position',
+        'width', 'height', 'margin', 'padding',
+        'color', 'background-color', 'font-size', 'font-family',
+        'border', 'z-index', 'overflow'
+      ];
+      for (const prop of commonProps) {
+        styles[prop] = computedStyle.getPropertyValue(prop);
+      }
+    }
+
+    return respondWith({ styles }, selector, xpath);
+  },
+
+  get_text: ({ selector, xpath }) => {
+    try {
+      let element;
+      if (!selector && !xpath) {
+        // Default to body for all page text
+        element = document.body;
+      } else {
+        try {
+          element = findAllElements(selector, xpath)[0];
+        } catch (e) {
+          const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+          return respondWithError(errorCode, e.message, selector, xpath);
+        }
+      }
+
+      if (!element) return elementNotFound(selector, xpath);
+
+      // Get visible text content (innerText respects CSS visibility)
+      const text = element.innerText;
+
+      return respondWith({
+        text,
+        length: text.length
+      }, selector, xpath);
+    } catch (e) {
+      return respondWithError('GET_TEXT_ERROR', e.message, selector, xpath);
+    }
+  },
+
+  wait_for_element: async ({ selector, xpath, timeout = 5000, visible = true }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+
+    const startTime = Date.now();
+    const pollInterval = 100; // Check every 100ms
+
+    while (Date.now() - startTime < timeout) {
+      try {
+        const elements = findAllElements(selector, xpath);
+
+        if (elements.length > 0) {
+          if (visible) {
+            // Check if at least one element is visible
+            for (const element of elements) {
+              if (isElementVisible(element)) {
+                return respondWith({
+                  found: true,
+                  element: getElementData(element),
+                  waitTime: Date.now() - startTime
+                }, selector, xpath);
+              }
+            }
+          } else {
+            // Just need element to exist in DOM
+            return respondWith({
+              found: true,
+              element: getElementData(elements[0]),
+              waitTime: Date.now() - startTime
+            }, selector, xpath);
+          }
+        }
+      } catch (e) {
+        // Invalid selector/xpath - return error immediately
+        const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+        return respondWithError(errorCode, e.message, selector, xpath);
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    // Timeout reached
+    return respondWith({
+      error: {
+        code: 'TIMEOUT',
+        message: `Element not found within ${timeout}ms`,
+        timeout,
+        visible
+      }
+    }, selector, xpath);
+  },
+
+  type: async ({ selector, xpath, text, delay = 50 }) => {
+    if (!text) {
+      return respondWithError('TEXT_REQUIRED', 'Text to type is required');
+    }
+
+    let element;
+    if (selector || xpath) {
+      try {
+        element = findAllElements(selector, xpath)[0];
+      } catch (e) {
+        const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+        return respondWithError(errorCode, e.message, selector, xpath);
+      }
+
+      if (!element) return elementNotFound(selector, xpath);
+
+      // Focus the element first
+      element.focus();
+    } else {
+      // Type to currently focused element or body
+      element = document.activeElement || document.body;
+    }
+
+    // Helper to get correct key code for a character
+    function getKeyCode(char) {
+      // Letters
+      if (/^[a-zA-Z]$/.test(char)) {
+        return `Key${char.toUpperCase()}`;
+      }
+      // Digits
+      if (/^[0-9]$/.test(char)) {
+        return `Digit${char}`;
+      }
+      // Special characters
+      const specialCodes = {
+        ' ': 'Space',
+        '\n': 'Enter',
+        '\t': 'Tab',
+        '.': 'Period',
+        ',': 'Comma',
+        '/': 'Slash',
+        '\\': 'Backslash',
+        '[': 'BracketLeft',
+        ']': 'BracketRight',
+        ';': 'Semicolon',
+        "'": 'Quote',
+        '`': 'Backquote',
+        '-': 'Minus',
+        '=': 'Equal'
+      };
+      return specialCodes[char] || `Key${char}`;
+    }
+
+    // Type character by character
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const code = getKeyCode(char);
+
+      // Dispatch keydown, keypress, and input events
+      element.dispatchEvent(new KeyboardEvent('keydown', {
+        key: char,
+        code: code,
+        charCode: char.charCodeAt(0),
+        keyCode: char.charCodeAt(0),
+        bubbles: true
+      }));
+
+      element.dispatchEvent(new KeyboardEvent('keypress', {
+        key: char,
+        code: code,
+        charCode: char.charCodeAt(0),
+        keyCode: char.charCodeAt(0),
+        bubbles: true
+      }));
+
+      // Update the value for input/textarea elements
+      if (element.value !== undefined) {
+        element.value += char;
+      } else if (element.isContentEditable) {
+        element.textContent += char;
+      }
+
+      element.dispatchEvent(new InputEvent('input', {
+        inputType: 'insertText',
+        data: char,
+        bubbles: true
+      }));
+
+      element.dispatchEvent(new KeyboardEvent('keyup', {
+        key: char,
+        code: code,
+        charCode: char.charCodeAt(0),
+        keyCode: char.charCodeAt(0),
+        bubbles: true
+      }));
+
+      // Wait between keystrokes
+      if (delay > 0 && i < text.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    return respondWith({
+      typed: true,
+      text,
+      length: text.length,
+      totalTime: text.length * delay
+    }, selector, xpath);
+  },
+
+  select_text: ({ selector, xpath, start = 0, end }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+
+    let element;
+    try {
+      element = findAllElements(selector, xpath)[0];
+    } catch (e) {
+      const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+      return respondWithError(errorCode, e.message, selector, xpath);
+    }
+
+    if (!element) return elementNotFound(selector, xpath);
+
+    try {
+      // Handle input/textarea elements
+      if (element.setSelectionRange) {
+        const textLength = element.value?.length || 0;
+        const actualEnd = end ?? textLength;
+        element.focus();
+        element.setSelectionRange(start, actualEnd);
+        return respondWith({
+          selected: true,
+          start,
+          end: actualEnd,
+          text: element.value.substring(start, actualEnd)
+        }, selector, xpath);
+      }
+
+      // Handle regular elements with text content
+      const range = document.createRange();
+      const textNode = element.firstChild;
+
+      if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+        return respondWithError('NO_TEXT_NODE', 'Element has no text content to select', selector, xpath);
+      }
+
+      const textLength = textNode.textContent?.length || 0;
+      const actualEnd = Math.min(end ?? textLength, textLength);
+
+      range.setStart(textNode, Math.min(start, textLength));
+      range.setEnd(textNode, actualEnd);
+
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      return respondWith({
+        selected: true,
+        start,
+        end: actualEnd,
+        text: selection.toString()
+      }, selector, xpath);
+    } catch (e) {
+      return respondWithError('SELECTION_ERROR', e.message, selector, xpath);
+    }
+  },
+
+  get_selected_text: () => {
+    const selection = window.getSelection();
+    const text = selection ? selection.toString() : '';
+
+    return respondWith({
+      text,
+      length: text.length,
+      hasSelection: text.length > 0
+    });
+  },
+
+  // ============ AI-FOCUSED TOOLS ============
+
+  page_structure: () => {
+    try {
+      const structure = {
+        title: document.title,
+        url: window.location.href,
+        headings: [],
+        navigation: [],
+        forms: [],
+        mainContent: null,
+        landmarks: [],
+        interactiveElements: { buttons: 0, links: 0, inputs: 0, selects: 0 }
+      };
+
+      // Extract headings with hierarchy
+      const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      headings.forEach(h => {
+        if (h.innerText.trim()) {
+          structure.headings.push({
+            level: parseInt(h.tagName[1]),
+            text: h.innerText.trim().substring(0, 100),
+            id: h.id || undefined
+          });
+        }
+      });
+
+      // Extract navigation areas
+      const navElements = document.querySelectorAll('nav, [role="navigation"]');
+      navElements.forEach((nav, index) => {
+        const links = nav.querySelectorAll('a');
+        structure.navigation.push({
+          index,
+          linkCount: links.length,
+          ariaLabel: nav.getAttribute('aria-label') || undefined,
+          links: Array.from(links).slice(0, 10).map(a => ({
+            text: (a.innerText || a.getAttribute('aria-label') || '').trim().substring(0, 50),
+            href: a.href
+          }))
+        });
+      });
+
+      // Extract forms with their fields
+      const forms = document.querySelectorAll('form');
+      forms.forEach((form, index) => {
+        const fields = [];
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+          if (field.type !== 'hidden') {
+            fields.push({
+              type: field.type || field.tagName.toLowerCase(),
+              name: field.name || field.id || undefined,
+              label: field.labels?.[0]?.innerText?.trim() ||
+                field.placeholder ||
+                field.getAttribute('aria-label') || undefined,
+              required: field.required || undefined
+            });
+          }
+        });
+
+        if (fields.length > 0) {
+          structure.forms.push({
+            index,
+            action: form.action || undefined,
+            method: form.method || 'get',
+            fieldCount: fields.length,
+            fields: fields.slice(0, 20),
+            submitButton: form.querySelector('button[type="submit"], input[type="submit"]')?.innerText || undefined
+          });
+        }
+      });
+
+      // Find main content area
+      const main = document.querySelector('main, [role="main"], #main, #content, .main-content');
+      if (main) {
+        structure.mainContent = {
+          selector: getUniqueSelector(main),
+          textPreview: main.innerText.trim().substring(0, 200) + '...'
+        };
+      }
+
+      // Extract landmarks (ARIA regions)
+      const landmarks = document.querySelectorAll('[role="banner"], [role="main"], [role="complementary"], [role="contentinfo"], [role="search"], header, footer, aside');
+      landmarks.forEach(landmark => {
+        const role = landmark.getAttribute('role') || landmark.tagName.toLowerCase();
+        structure.landmarks.push({
+          role,
+          ariaLabel: landmark.getAttribute('aria-label') || undefined,
+          selector: getUniqueSelector(landmark)
+        });
+      });
+
+      // Count interactive elements
+      structure.interactiveElements = {
+        buttons: document.querySelectorAll('button, [role="button"]').length,
+        links: document.querySelectorAll('a[href]').length,
+        inputs: document.querySelectorAll('input:not([type="hidden"]), textarea').length,
+        selects: document.querySelectorAll('select').length
+      };
+
+      return respondWith(structure);
+    } catch (e) {
+      return respondWithError('PAGE_STRUCTURE_ERROR', e.message);
+    }
+  },
+
+  labeled_screenshot: () => {
+    try {
+      // Find all interactive elements that are visible
+      const interactiveSelectors = [
+        'a[href]', 'button', '[role="button"]',
+        'input:not([type="hidden"])', 'textarea', 'select',
+        '[onclick]', '[tabindex]:not([tabindex="-1"])'
+      ];
+
+      const elements = [];
+      let labelIndex = 1;
+
+      interactiveSelectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => {
+          if (isElementVisible(el)) {
+            const rect = el.getBoundingClientRect();
+            // Skip very small elements
+            if (rect.width < 10 || rect.height < 10) return;
+
+            elements.push({
+              index: labelIndex++,
+              selector: getUniqueSelector(el),
+              tagName: el.tagName.toLowerCase(),
+              type: el.type || el.getAttribute('role') || undefined,
+              text: (el.innerText || el.value || el.getAttribute('aria-label') || el.placeholder || '').trim().substring(0, 50),
+              bounds: {
+                x: Math.round(rect.x),
+                y: Math.round(rect.y),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height)
+              }
+            });
+          }
+        });
+      });
+
+      // Deduplicate by selector
+      const seen = new Set();
+      const uniqueElements = elements.filter(el => {
+        if (seen.has(el.selector)) return false;
+        seen.add(el.selector);
+        return true;
+      });
+
+      // Re-index after dedup
+      uniqueElements.forEach((el, i) => el.index = i + 1);
+
+      // Create and inject label overlays
+      let overlayContainer = document.getElementById('kapture-labels');
+      if (overlayContainer) {
+        overlayContainer.remove();
+      }
+
+      overlayContainer = document.createElement('div');
+      overlayContainer.id = 'kapture-labels';
+      overlayContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2147483646;
+      `;
+
+      uniqueElements.forEach(el => {
+        const label = document.createElement('div');
+        label.style.cssText = `
+          position: fixed;
+          left: ${el.bounds.x}px;
+          top: ${el.bounds.y}px;
+          background: rgba(255, 0, 0, 0.8);
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          padding: 1px 4px;
+          border-radius: 3px;
+          font-family: monospace;
+          z-index: 2147483647;
+          pointer-events: none;
+        `;
+        label.textContent = el.index;
+        overlayContainer.appendChild(label);
+
+        // Also add a border highlight
+        const highlight = document.createElement('div');
+        highlight.style.cssText = `
+          position: fixed;
+          left: ${el.bounds.x}px;
+          top: ${el.bounds.y}px;
+          width: ${el.bounds.width}px;
+          height: ${el.bounds.height}px;
+          border: 2px solid rgba(255, 0, 0, 0.6);
+          pointer-events: none;
+          box-sizing: border-box;
+        `;
+        overlayContainer.appendChild(highlight);
+      });
+
+      document.body.appendChild(overlayContainer);
+
+      return respondWith({
+        labelsApplied: true,
+        elementCount: uniqueElements.length,
+        elements: uniqueElements,
+        hint: 'Take a screenshot now to capture the labeled elements. Use clear_labels to remove overlays.'
+      });
+    } catch (e) {
+      return respondWithError('LABELED_SCREENSHOT_ERROR', e.message);
+    }
+  },
+
+  clear_labels: () => {
+    const overlayContainer = document.getElementById('kapture-labels');
+    if (overlayContainer) {
+      overlayContainer.remove();
+      return respondWith({ cleared: true });
+    }
+    return respondWith({ cleared: false, message: 'No labels to clear' });
+  },
+
+  accessibility_tree: ({ selector, xpath, maxDepth = 5, maxNodes = 500 }) => {
+    try {
+      let rootElement = document.body;
+      let nodeCount = 0;
+      let truncated = false;
+
+      if (selector || xpath) {
+        try {
+          rootElement = findAllElements(selector, xpath)[0];
+        } catch (e) {
+          const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+          return respondWithError(errorCode, e.message, selector, xpath);
+        }
+        if (!rootElement) return elementNotFound(selector, xpath);
+      }
+
+      function getAccessibleName(el) {
+        // Priority: aria-label > aria-labelledby > alt > title > innerText
+        if (el.getAttribute('aria-label')) return el.getAttribute('aria-label');
+
+        const labelledBy = el.getAttribute('aria-labelledby');
+        if (labelledBy) {
+          const labelEl = document.getElementById(labelledBy);
+          if (labelEl) return labelEl.innerText?.trim();
+        }
+
+        if (el.alt) return el.alt;
+        if (el.title) return el.title;
+        if (el.labels?.[0]) return el.labels[0].innerText?.trim();
+
+        // For leaf nodes, use text content
+        const text = el.innerText?.trim();
+        if (text && text.length < 100) return text;
+
+        return undefined;
+      }
+
+      function getAccessibleRole(el) {
+        // Explicit role takes precedence
+        const explicitRole = el.getAttribute('role');
+        if (explicitRole) return explicitRole;
+
+        // Implicit roles from tag names
+        const tagRoles = {
+          'a': el.href ? 'link' : undefined,
+          'button': 'button',
+          'input': el.type === 'checkbox' ? 'checkbox' :
+            el.type === 'radio' ? 'radio' :
+              el.type === 'submit' ? 'button' :
+                el.type === 'text' || el.type === 'email' || el.type === 'password' ? 'textbox' :
+                  el.type,
+          'select': 'combobox',
+          'textarea': 'textbox',
+          'img': 'img',
+          'nav': 'navigation',
+          'main': 'main',
+          'header': 'banner',
+          'footer': 'contentinfo',
+          'aside': 'complementary',
+          'article': 'article',
+          'section': el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') ? 'region' : undefined,
+          'form': 'form',
+          'table': 'table',
+          'ul': 'list',
+          'ol': 'list',
+          'li': 'listitem',
+          'h1': 'heading',
+          'h2': 'heading',
+          'h3': 'heading',
+          'h4': 'heading',
+          'h5': 'heading',
+          'h6': 'heading'
+        };
+
+        return tagRoles[el.tagName.toLowerCase()];
+      }
+
+      function buildTree(el, depth = 0) {
+        if (nodeCount >= maxNodes) {
+          truncated = true;
+          return null;
+        }
+        if (depth > maxDepth) return null;
+        if (!el || el.nodeType !== Node.ELEMENT_NODE) return null;
+
+        // Skip hidden elements
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return null;
+        if (el.getAttribute('aria-hidden') === 'true') return null;
+
+        const role = getAccessibleRole(el);
+        const name = getAccessibleName(el);
+
+        // Build children
+        const children = [];
+        for (const child of el.children) {
+          if (nodeCount >= maxNodes) {
+            truncated = true;
+            break;
+          }
+          const childNode = buildTree(child, depth + 1);
+          if (childNode) children.push(childNode);
+        }
+
+        // Skip generic containers with no role/name and just one child
+        if (!role && !name && children.length === 1) {
+          return children[0];
+        }
+
+        // Skip empty generic containers
+        if (!role && !name && children.length === 0) {
+          return null;
+        }
+
+        nodeCount++;
+
+        const node = {
+          role: role || 'generic',
+          name: name?.substring(0, 100),
+          selector: role || name ? getUniqueSelector(el) : undefined
+        };
+
+        // Add relevant states
+        if (el.disabled) node.disabled = true;
+        if (el.checked) node.checked = true;
+        if (el.required) node.required = true;
+        if (el.getAttribute('aria-expanded')) node.expanded = el.getAttribute('aria-expanded') === 'true';
+        if (el.getAttribute('aria-selected')) node.selected = el.getAttribute('aria-selected') === 'true';
+        if (el.tagName.match(/^H[1-6]$/)) node.level = parseInt(el.tagName[1]);
+
+        if (children.length > 0) {
+          node.children = children;
+        }
+
+        return node;
+      }
+
+      const tree = buildTree(rootElement);
+
+      return respondWith({
+        tree: tree || { role: 'none', message: 'No accessible content found' },
+        nodeCount,
+        maxDepth,
+        maxNodes,
+        truncated
+      }, selector, xpath);
+    } catch (e) {
+      return respondWithError('ACCESSIBILITY_TREE_ERROR', e.message, selector, xpath);
     }
   }
 };
