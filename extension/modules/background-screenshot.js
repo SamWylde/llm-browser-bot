@@ -1,7 +1,7 @@
 // Import helper functions from background-commands
 import { getElement, getTabInfo, respondWithError, attachDebugger } from './background-commands.js';
 
-export async function screenshot({tabId}, { scale = 0.5, quality = 0.5, format = 'webp', selector, xpath }) {
+export async function screenshot({ tabId }, { scale = 0.5, quality = 0.5, format = 'webp', selector, xpath }) {
   let elementResult;
   if (selector || xpath) {
     elementResult = await getElement(tabId, selector, xpath, true);
@@ -11,8 +11,8 @@ export async function screenshot({tabId}, { scale = 0.5, quality = 0.5, format =
     elementResult = await getTabInfo(tabId)
     elementResult.element = {
       bounds: {
-        x: elementResult.scrollPosition.x,
-        y: elementResult.scrollPosition.y,
+        x: 0,
+        y: 0,
         width: elementResult.viewportDimensions.width,
         height: elementResult.viewportDimensions.height
       }
@@ -20,7 +20,7 @@ export async function screenshot({tabId}, { scale = 0.5, quality = 0.5, format =
   }
 
   const clip = { ...elementResult.element.bounds };
-  
+
   // For fixed positioned elements, we need viewport-relative coordinates
   // For non-fixed elements, we need document-relative coordinates
   if (elementResult.element.position !== 'fixed') {
@@ -28,7 +28,7 @@ export async function screenshot({tabId}, { scale = 0.5, quality = 0.5, format =
     clip.x += elementResult.scrollPosition.x;
     clip.y += elementResult.scrollPosition.y;
   }
-  
+
   if (scale) {
     clip.scale = scale;
   }
@@ -48,7 +48,7 @@ export async function screenshot({tabId}, { scale = 0.5, quality = 0.5, format =
       data: screenshot.data,
     };
   })
-  .catch((err) => {
-    return respondWithError(tabId,'SCREENSHOT_ERROR', err.message, null, null);
-  });
+    .catch((err) => {
+      return respondWithError(tabId, 'SCREENSHOT_ERROR', err.message, null, null);
+    });
 }

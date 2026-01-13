@@ -15,6 +15,18 @@ chrome.tabs.query({}, (tabs) => {
 // Also check the inspected window URL
 console.log('inspectedWindow.url:', chrome.devtools.inspectedWindow.url);
 
+// Check if we are in DevTools
+if (!chrome.devtools || !chrome.devtools.inspectedWindow) {
+  document.body.innerHTML = `
+    <div style="padding: 20px; color: #ccc; font-family: sans-serif;">
+      <h2>LLM Browser Bot Panel</h2>
+      <p>This panel is designed to be used within Chrome Developer Tools.</p>
+      <p>Please press <strong>F12</strong> to open Developer Tools, then click the <strong>LLM Bot</strong> tab.</p>
+    </div>
+  `;
+  throw new Error('Not in DevTools');
+}
+
 const tabId = chrome.devtools.inspectedWindow.tabId;
 let selectedMessageIndex = -1;
 let messages = [];
@@ -181,14 +193,14 @@ function selectMessage(index) {
     const data = message.data;
 
     // Check if this is a screenshot response
-    if (data.type === 'response' && data.success && data.result && data.result.data && 
-        data.result.mimeType && data.result.mimeType.startsWith('image/')) {
+    if (data.type === 'response' && data.success && data.result && data.result.data &&
+      data.result.mimeType && data.result.mimeType.startsWith('image/')) {
       // Create image preview for screenshot
       const img = document.createElement('img');
       img.src = `data:${data.result.mimeType};base64,${data.result.data}`;
       img.style.cssText = 'max-width: 100%; height: auto; cursor: pointer; display: block; border: 1px solid #e0e0e0; border-radius: 4px;';
       img.title = 'Click to open in new tab';
-      
+
       // Open in new tab on click
       img.addEventListener('click', () => {
         window.open(img.src, '_blank');
@@ -197,7 +209,7 @@ function selectMessage(index) {
       // Show image and data
       detailContent.innerHTML = '';
       detailContent.appendChild(img);
-      
+
       // Add the rest of the data below the image
       const dataInfo = document.createElement('pre');
       dataInfo.textContent = JSON.stringify(data.result, null, 2);
@@ -258,7 +270,7 @@ function handleClearLogs() {
 function handleClearMessages() {
   // Request background to clear messages
   port.postMessage({ type: 'clearMessages', tabId });
-  
+
   // Clear the detail view
   const detailContainer = document.getElementById('detail-container');
   detailContainer.classList.remove('visible');
