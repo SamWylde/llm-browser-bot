@@ -6,15 +6,15 @@ echo      LLM Browser Bot - Update & Start
 echo ==========================================
 
 echo [1/4] Checking for updates...
-where git >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo Warning: Git is not found in your PATH. Skipping update...
+if exist "update_logic.ps1" (
+    powershell -ExecutionPolicy Bypass -File update_logic.ps1
 ) else (
-    git pull
-    if %ERRORLEVEL% NEQ 0 (
-        echo.
-        echo Warning: Failed to pull updates from git. Continuing with local version...
+    echo Warning: update_logic.ps1 not found. Trying git directly...
+    where git >nul 2>nul
+    if %ERRORLEVEL% EQU 0 (
+        git pull
+    ) else (
+        echo Warning: Git not found and update script missing. Skipping update.
     )
 )
 
