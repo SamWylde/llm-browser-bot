@@ -8,6 +8,10 @@ echo ==========================================
 echo [1/4] Checking for updates...
 if exist "update_logic.ps1" (
     powershell -ExecutionPolicy Bypass -File update_logic.ps1
+    if %ERRORLEVEL% NEQ 0 (
+        echo Warning: Update script returned an error.
+        echo Continuing with current version...
+    )
 ) else (
     echo Warning: update_logic.ps1 not found. Trying git directly...
     where git >nul 2>nul

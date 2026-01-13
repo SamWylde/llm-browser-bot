@@ -53,47 +53,73 @@ try {
     Write-Host "[Update] New version found ($latestSha)."
     Write-Host "[Update] Downloading latest source..."
     
-    $zipUrl = "https://github.com/$repo/archive/refs/heads/$branch.zip"
-    $zipPath = "update_temp.zip"
-    $extractPath = "update_temp_dir"
-
-    # Clean previous temp files if any
-    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-    if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
-
-    # Download Zip
-    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
-
-    # Extract Zip
-    Write-Host "[Update] Extracting files..."
-    Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-
-    # The zip usually contains a folder like "llm-browser-bot-master"
-    $innerFolder = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
-
-    if ($null -eq $innerFolder) {
-        throw "Could not find extracted folder structure."
-    }
-
-    Write-Host "[Update] Installing updates..."
+    # 3. Create Backup
+    $backupDir = "backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    Write-Host "[Update] Creating backup at $backupDir..."
+    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
     
-    # Copy files over, overwriting existing ones
-    # We exclude .git to avoid corrupting a partial git repo if it exists
-    $sourceDir = $innerFolder.FullName
-    Get-ChildItem -Path $sourceDir | ForEach-Object {
-        if ($_.Name -ne ".git") {
-            Copy-Item -Path $_.FullName -Destination "." -Recurse -Force
+    # Files to exclude from backup/copy (temp files, git, node_modules which we can reinstall)
+    $excludeItems = @(".git", "node_modules", "dist", $backupDir, "update_temp.zip", "update_temp_dir", $localVersionFile, ".env")
+    
+    Get-ChildItem -Path "." | ForEach-Object {
+        if ($excludeItems -notcontains $_.Name) {
+            Copy-Item -Path $_.FullName -Destination $backupDir -Recurse -Force
         }
     }
 
-    # Update version file
-    Set-Content -Path $localVersionFile -Value $latestSha
-    
-    # Cleanup
-    Remove-Item $zipPath -Force
-    Remove-Item $extractPath -Recurse -Force
-    
-    Write-Host "[Update] Update completed successfully."
+    try {
+        # 4. Download and Extract
+        $zipUrl = "https://github.com/$repo/archive/refs/heads/$branch.zip"
+        $zipPath = "update_temp.zip"
+        $extractPath = "update_temp_dir"
+
+        # Clean previous temp files
+        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+        if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
+
+        Write-Host "[Update] Downloading latest source..."
+        Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+
+        Write-Host "[Update] Extracting files..."
+        Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+
+        $innerFolder = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
+        if ($null -eq $innerFolder) { throw "Could not find extracted folder structure." }
+
+        # 5. Apply Updates (Overwrite)
+        Write-Host "[Update] applying updates..."
+        $sourceDir = $innerFolder.FullName
+        
+        Get-ChildItem -Path $sourceDir | ForEach-Object {
+            # Skip .git to protect repo metadata if it exists
+            # Skip .env to protect user secrets
+            if ($_.Name -ne ".git" -and $_.Name -ne ".env") {
+                Copy-Item -Path $_.FullName -Destination "." -Recurse -Force
+            }
+        }
+
+        # Update version file
+        Set-Content -Path $localVersionFile -Value $latestSha
+        
+        Write-Host "[Update] Update completed successfully."
+        
+        # Cleanup Backup (optional: consider keeping the last one?)
+        # Remove-Item $backupDir -Recurse -Force 
+        Write-Host "[Update] Backup kept at $backupDir in case of issues."
+
+    } catch {
+        Write-Error "[Update] Update failed! Restoring from backup..."
+        # Restore logic
+        Get-ChildItem -Path $backupDir | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination "." -Recurse -Force
+        }
+        Write-Host "[Update] Restore complete."
+        throw $_
+    } finally {
+        # Cleanup Temp Files
+        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+        if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
+    }
 
 } catch {
     Write-Error "[Update] Update failed: $_"
