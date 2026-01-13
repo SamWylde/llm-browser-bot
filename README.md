@@ -1,23 +1,23 @@
-# Kapture - Browser Automation via Chrome DevTools
+# LLM Browser Bot - Browser Automation via Chrome DevTools
 
-Kapture is a Chrome DevTools Extension that enables browser automation through the Model Context Protocol (MCP). It allows AI applications like Claude to control web browsers via a three-layer architecture.
+LLM Browser Bot is a Chrome DevTools Extension that enables browser automation through the Model Context Protocol (MCP). It allows AI applications like Claude to control web browsers via a three-layer architecture.
 
 **✨ Key Feature**: Multiple AI clients can connect to the same server! Claude Desktop, Cline, and other MCP clients can all control browser tabs through a single server instance.
 
 ![Available in the Chrome Web Store](https://to.kap.co/kapture-extension)]
 
-![Kapture DevTools Extension Panel](website/assets/images/ScreenshotWithExtensionPanel.webp)
+![LLM Browser Bot DevTools Extension Panel](website/assets/images/ScreenshotWithExtensionPanel.webp)
 
 ## Overview
 
-Kapture bridges AI assistants with web browsers through:
+LLM Browser Bot bridges AI assistants with web browsers through:
 - **MCP Server**: Handles MCP protocol communication
 - **Chrome Extension**: DevTools panel for browser automation
 - **WebSocket Bridge**: Real-time communication between server and extensions
 - **Multi-Client Support**: Multiple AI clients can connect simultaneously via WebSocket
 
 ## Architecture
-![How Kapture Works](website/assets/images/HowKaptureWorks.webp)
+![How LLM Browser Bot Works](website/assets/images/HowKaptureWorks.webp)
 
 ## Quick Start
 
@@ -37,7 +37,7 @@ npm install
 ### 2. Install Chrome Extension
 
 #### Option A: Install from Chrome Web Store (Recommended)
-1. Visit the [Kapture Chrome Web Store page](https://to.kap.co/kapture-extension)
+1. Visit the [LLM Browser Bot Chrome Web Store page](https://to.kap.co/kapture-extension)
 2. Click "Add to Chrome"
 3. Confirm the installation
 
@@ -48,7 +48,7 @@ npm install
 4. Select the `extension` folder
 
 ### 3. Start MCP Server
-[Configure your AI client](https://williamkapke.github.io/kapture/MCP_USAGE.html) and open it. It will start the MCP server automatically.
+[Configure your AI client](https://samwylde.github.io/llm-browser-bot/MCP_USAGE.html) and open it. It will start the MCP server automatically.
 
 **OR**
 
@@ -75,9 +75,9 @@ npm start
 
 1. Open any website in Chrome
 2. Open Chrome/Brave Developer Tools (F12 on Windows/Linux, Cmd+Option+I on macOS)
-3. Navigate to "Kapture" panel
-4. The extension will automatically connect to the server on port 61822
-5. Select a server from the dropdown to connect automatically
+77. Navigate to "LLM Browser Bot" panel
+78. The extension will automatically connect to the server on port 61822
+79. Select a server from the dropdown to connect automatically
 
 ## Using with Claude Desktop
 
@@ -88,9 +88,9 @@ This single command starts the server and handles stdio-to-WebSocket translation
 ```json
 {
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }
@@ -101,14 +101,14 @@ For advanced use cases where you need manual server control:
 
 1. Start the server manually:
 ```bash
-npx kapture-mcp
+npx llm-browser-bot
 ```
 
 2. Configure Claude Desktop to connect via WebSocket:
 ```json
 {
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "transport": "websocket",
       "url": "ws://localhost:61822/mcp"
     }
@@ -120,7 +120,7 @@ npx kapture-mcp
 
 ## 🚀 Run Multiple AI Assistants Simultaneously
 
-Kapture supports multiple MCP clients connecting to the same server! You can run Claude Desktop, Cline, and other MCP clients simultaneously through a single server instance.
+LLM Browser Bot supports multiple MCP clients connecting to the same server! You can run Claude Desktop, Cline, and other MCP clients simultaneously through a single server instance.
 
 ### How It Works
 - All MCP clients connect via WebSocket to `ws://localhost:61822/mcp`
@@ -128,7 +128,7 @@ Kapture supports multiple MCP clients connecting to the same server! You can run
 - Notifications are broadcast to all connected clients
 
 ### Smart Server Detection
-When running `npx kapture-mcp`, the command automatically detects if a server is already running:
+When running `npx llm-browser-bot`, the command automatically detects if a server is already running:
 - **No existing server**: Starts a new server on port 61822
 - **Server already running**: Shows connection information and exits gracefully
 
@@ -142,9 +142,9 @@ Each client should use the same bridge command configuration:
 ```json
 {
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }
@@ -154,18 +154,18 @@ Each client should use the same bridge command configuration:
 ```json
 {
   "cline.mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }
 ```
 
 **Other MCP Clients**:
-Use the same configuration pattern with `"command": "npx"` and `"args": ["-y", "kapture-mcp", "bridge"]`.
+Use the same configuration pattern with `"command": "npx"` and `"args": ["-y", "llm-browser-bot", "bridge"]`.
 
-[See the complete multi-assistant guide →](https://williamkapke.github.io/kapture/MULTI_ASSISTANT_GUIDE.html)
+[See the complete multi-assistant guide →](https://samwylde.github.io/llm-browser-bot/MULTI_ASSISTANT_GUIDE.html)
 
 ### Benefits of Multiple AI Assistants:
 - **Parallel Workflows**: Have Claude Desktop research while Cline develops code
@@ -321,14 +321,14 @@ Execute JavaScript with async/await support:
 ### Server Development
 
 ```bash
-cd server
+cd llm-browser-bot
 npm run dev    # Development with hot-reload
 ```
 
 ### Test App
 
 ```bash
-cd test-app
+cd llm-browser-bot-test-app
 npm run dev    # Run Electron test app
 ```
 
@@ -336,12 +336,12 @@ npm run dev    # Run Electron test app
 
 After making changes:
 1. Go to `chrome://extensions/`
-2. Click refresh on Kapture extension
+2. Click refresh on LLM Browser Bot extension
 
 
 ### Key Components
 
-**Server** (`/server`):
+**Server** (`/llm-browser-bot`):
 - `mcp-handler.ts` - MCP protocol implementation
 - `websocket-manager.ts` - WebSocket server
 - `tab-registry.ts` - Tab tracking
@@ -383,9 +383,9 @@ After making changes:
 - Check element selectors are correct
 
 ### Performance Considerations
-**Important**: The `click` and `hover` tools may experience performance issues when the Kapture DevTools panel is not the active/selected tab in Chrome DevTools. For optimal performance:
-- Keep the Kapture panel selected during automation
-- If experiencing delays with click/hover operations, switch to the Kapture panel
+**Important**: The `click` and `hover` tools may experience performance issues when the LLM Browser Bot DevTools panel is not the active/selected tab in Chrome DevTools. For optimal performance:
+- Keep the LLM Browser Bot panel selected during automation
+- If experiencing delays with click/hover operations, switch to the LLM Browser Bot panel
 - This is due to Chrome's optimization of inactive DevTools panels
 
 ## Security
