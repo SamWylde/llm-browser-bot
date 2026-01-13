@@ -86,26 +86,64 @@ try {
         $innerFolder = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
         if ($null -eq $innerFolder) { throw "Could not find extracted folder structure." }
 
-        # 5. Apply Updates (Overwrite)
-        Write-Host "[Update] applying updates..."
+        # 5. Apply Updates (Smart Sync)
+        Write-Host "[Update] Applying updates (Smart Sync)..."
         $sourceDir = $innerFolder.FullName
         
-        Get-ChildItem -Path $sourceDir | ForEach-Object {
-            # Skip .git to protect repo metadata if it exists
-            # Skip .env to protect user secrets
-            if ($_.Name -ne ".git" -and $_.Name -ne ".env") {
-                Copy-Item -Path $_.FullName -Destination "." -Recurse -Force
+        # Get all files in source recursively
+        $files = Get-ChildItem -Path $sourceDir -Recurse | Where-Object { !$_.PSIsContainer }
+        
+        $updatedCount = 0
+        $skippedCount = 0
+
+        foreach ($file in $files) {
+            # Calculate relative path
+            # We use substring to remove the temp folder prefix
+            $relativePath = $file.FullName.Substring($sourceDir.Length + 1)
+            
+            # Safety: Skip .git folder or .env file explicitly
+            if ($relativePath -match "^(\.git|node_modules|dist|\.env)") { continue }
+            
+            $destPath = Join-Path "." $relativePath
+            
+            # Ensure destination parent directory exists
+            $parentDir = Split-Path $destPath -Parent
+            if ($parentDir -and -not (Test-Path $parentDir)) {
+                New-Item -ItemType Directory -Force -Path $parentDir | Out-Null
+            }
+            
+            $shouldCopy = $true
+            
+            # Compare hash if file exists locally
+            if (Test-Path $destPath) {
+                try {
+                    $localHash = (Get-FileHash -Path $destPath -Algorithm MD5).Hash
+                    $newHash = (Get-FileHash -Path $file.FullName -Algorithm MD5).Hash
+                    if ($localHash -eq $newHash) {
+                        $shouldCopy = $false
+                        $skippedCount++
+                    }
+                } catch {
+                    # If we can't read the file (locked?), default to overwrite attempt
+                    Write-Warning "[Update] Could not read $destPath for comparison. Will attempt overwrite."
+                }
+            }
+            
+            if ($shouldCopy) {
+                Write-Host "[Update] Updating: $relativePath"
+                Copy-Item -Path $file.FullName -Destination $destPath -Force
+                $updatedCount++
             }
         }
 
         # Update version file
         Set-Content -Path $localVersionFile -Value $latestSha
         
-        Write-Host "[Update] Update completed successfully."
+        Write-Host "[Update] Complete. Updated $updatedCount files. Skipped $skippedCount unchanged files."
         
-        # Cleanup Backup (optional: consider keeping the last one?)
+        # Cleanup Backup if successful
         # Remove-Item $backupDir -Recurse -Force 
-        Write-Host "[Update] Backup kept at $backupDir in case of issues."
+        Write-Host "[Update] Backup kept at $backupDir"
 
     } catch {
         Write-Error "[Update] Update failed! Restoring from backup..."
