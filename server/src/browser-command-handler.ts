@@ -75,7 +75,7 @@ export class BrowserCommandHandler {
   async newTab(browser?: string): Promise<any> {
     // Generate a unique session ID for this tab
     const sessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const targetUrl = `https://williamkapke.github.io/kapture/how-to.html#session=${sessionId}`;
+    const targetUrl = `https://samwylde.github.io/llm-browser-bot/how-to.html#session=${sessionId}`;
 
     // Open the browser with the URL using system command
     const platform = process.platform;
@@ -117,7 +117,8 @@ export class BrowserCommandHandler {
         command = `start ${exeName} "${targetUrl}"`;
       } else {
         // Use system default browser
-        command = `start "${targetUrl}"`;
+        // NOTE: The empty string first argument is required because 'start' interprets the first quoted argument as the window title
+        command = `start "" "${targetUrl}"`;
       }
     } else {
       // Linux
