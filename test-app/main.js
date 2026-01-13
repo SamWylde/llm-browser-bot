@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 
 // Set app name before anything else
-app.setName('Kapture Test Client');
+app.setName('LLM Browser Bot Test Client');
 
 const path = require('path');
 const WebSocket = require('ws');
@@ -20,7 +20,7 @@ function parseArgs() {
     if (args[i] === '--dev') {
       dev = true;
     } else if (args[i] === '--help' || args[i] === '-h') {
-      console.log('Kapture Test App (WebSocket Mode)');
+      console.log('LLM Browser Bot Test App (WebSocket Mode)');
       console.log('Usage: npm start -- [options]');
       console.log('');
       console.log('Options:');
@@ -40,7 +40,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: 'Kapture Test Client',
+    title: 'LLM Browser Bot Test Client',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -175,7 +175,7 @@ function scheduleReconnect() {
   console.log(`Scheduling reconnection attempt ${reconnectAttempts} in ${delay}ms`);
   mainWindow.webContents.send('mcp-notification', {
     method: 'log',
-    params: { message: `Reconnecting in ${Math.round(delay/1000)}s... (attempt ${reconnectAttempts})`, type: 'warning' }
+    params: { message: `Reconnecting in ${Math.round(delay / 1000)}s... (attempt ${reconnectAttempts})`, type: 'warning' }
   });
 
   reconnectInterval = setTimeout(() => {
@@ -194,7 +194,7 @@ async function initializeMCPConnection() {
     protocolVersion: '2024-11-05',
     capabilities: {},
     clientInfo: {
-      name: 'kapture-test-app-websocket',
+      name: 'llm-browser-bot-test-app-websocket',
       version: '1.0.0'
     }
   });
@@ -283,14 +283,14 @@ ipcMain.handle('mcp-request', async (event, method, params) => {
   if (!mcpWebSocket || mcpWebSocket.readyState !== WebSocket.OPEN) {
     throw new Error('MCP WebSocket not connected');
   }
-  
+
   // Calculate timeout based on the tool and its parameters
   let timeout = 5000; // default 5 seconds
   if (method === 'tools/call' && params?.name === 'keypress' && params?.arguments?.delay) {
     // For keypress with delay, add 3 seconds to the delay for overhead
     timeout = Math.max(5000, params.arguments.delay + 3000);
   }
-  
+
   return await sendMCPRequest(method, params, timeout);
 });
 

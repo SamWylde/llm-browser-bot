@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Running Multiple AI Assistants with Kapture</title>
+    <title>Running Multiple AI Assistants with LLM Browser Bot</title>
     <style>
         * {
             margin: 0;
@@ -23,7 +24,7 @@
             margin: 0 auto;
             padding: 40px 20px;
             background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
         }
 
         h1 {
@@ -61,7 +62,8 @@
             line-height: 1.8;
         }
 
-        ul, ol {
+        ul,
+        ol {
             margin: 15px 0;
             padding-left: 30px;
         }
@@ -164,30 +166,33 @@
         mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
     </script>
 </head>
+
 <body>
     <div class="container">
         <a href="index.html" class="back-link">← Back to Documentation</a>
 
         <h1>Running Multiple AI Assistants with Kapture</h1>
 
-        <p>Kapture enables multiple AI assistants to control browser tabs simultaneously through a single server instance. This guide explains how to set up and manage multi-assistant workflows effectively.</p>
+        <p>Kapture enables multiple AI assistants to control browser tabs simultaneously through a single server
+            instance. This guide explains how to set up and manage multi-assistant workflows effectively.</p>
 
         <h2>Understanding the Architecture</h2>
 
         <p>Kapture uses a hybrid architecture that supports both stdio and WebSocket connections:</p>
 
         <div class="mermaid">
-graph LR
-    CD[Claude Desktop] -->|stdio| B[bridge]
-    B -->|WebSocket| KS[Kapture Server]
-    OC[Other MCP Clients] -->|WebSocket| KS
-    KS --> CE[Chrome Extension]
-    CE --> BT[Browser Tabs]
+            graph LR
+            CD[Claude Desktop] -->|stdio| B[bridge]
+            B -->|WebSocket| KS[LLM Browser Bot Server]
+            OC[Other MCP Clients] -->|WebSocket| KS
+            KS --> CE[Chrome Extension]
+            CE --> BT[Browser Tabs]
         </div>
 
         <h3>Key Concepts</h3>
         <ol>
-            <li><strong>Single Server Instance</strong>: Only one Kapture server runs at a time on port 61822</li>
+            <li><strong>Single Server Instance</strong>: Only one LLM Browser Bot server runs at a time on port 61822
+            </li>
             <li><strong>Bridge Mode</strong>: Translates between stdio (used by Claude Desktop) and WebSocket</li>
             <li><strong>Direct WebSocket</strong>: Other MCP clients connect directly via WebSocket</li>
             <li><strong>Shared Browser Access</strong>: All connected clients can control any connected browser tab</li>
@@ -197,7 +202,8 @@ graph LR
 
         <h3>Step 1: Install the Chrome Extension</h3>
         <ol>
-            <li>Download the Kapture extension from the <a href="https://github.com/williamkapke/kapture/releases">releases page</a></li>
+            <li>Download the LLM Browser Bot extension from the <a
+                    href="https://github.com/SamWylde/llm-browser-bot/releases">releases page</a></li>
             <li>Open Chrome and navigate to <code>chrome://extensions/</code></li>
             <li>Enable "Developer mode"</li>
             <li>Click "Load unpacked" and select the extension folder</li>
@@ -210,7 +216,8 @@ graph LR
         <ol>
             <li>Open Claude Desktop's configuration file:
                 <ul>
-                    <li><strong>macOS</strong>: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></li>
+                    <li><strong>macOS</strong>:
+                        <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></li>
                     <li><strong>Windows</strong>: <code>%APPDATA%\Claude\claude_desktop_config.json</code></li>
                     <li><strong>Linux</strong>: <code>~/.config/Claude/claude_desktop_config.json</code></li>
                 </ul>
@@ -218,9 +225,9 @@ graph LR
             <li>Add the Kapture configuration:
                 <pre><code>{
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }</code></pre>
@@ -236,7 +243,7 @@ graph LR
         <p>Add to your VS Code settings:</p>
         <pre><code>{
   "cline.mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "transport": "websocket",
       "url": "ws://localhost:61822/mcp"
     }
@@ -251,7 +258,7 @@ graph LR
         <ol>
             <li>Open Chrome/Brave and navigate to any website</li>
             <li>Open DevTools (F12 or Cmd+Option+I)</li>
-            <li>Click on the "Kapture" panel</li>
+            <li>Click on the "LLM Browser Bot" panel</li>
             <li>The extension automatically connects to the server</li>
         </ol>
 
@@ -276,7 +283,7 @@ graph LR
 }</code></pre>
 
         <h3>Monitor in DevTools</h3>
-        <p>The Kapture panel shows:</p>
+        <p>The LLM Browser Bot panel shows:</p>
         <ul>
             <li>Server connection status</li>
             <li>Command history</li>
@@ -326,7 +333,8 @@ graph LR
         <h3>Server Lifecycle</h3>
         <ol>
             <li><strong>Automatic Start</strong>: When Claude Desktop launches with the bridge config</li>
-            <li><strong>Smart Detection</strong>: If you run <code>npx kapture-mcp</code> manually and a server is already running, it will show the existing server info and exit</li>
+            <li><strong>Smart Detection</strong>: If you run <code>npx llm-browser-bot</code> manually and a server is
+                already running, it will show the existing server info and exit</li>
             <li><strong>Graceful Shutdown</strong>: Server stops when all clients disconnect</li>
         </ol>
 
@@ -334,7 +342,8 @@ graph LR
         <ul>
             <li><strong>Tab Persistence</strong>: Tab IDs remain constant even if the page reloads</li>
             <li><strong>Automatic Reconnection</strong>: Extensions reconnect automatically if the server restarts</li>
-            <li><strong>Independent Control</strong>: Each AI can control any tab, but commands are queued to prevent conflicts</li>
+            <li><strong>Independent Control</strong>: Each AI can control any tab, but commands are queued to prevent
+                conflicts</li>
         </ul>
 
         <h3>Resource Limits</h3>
@@ -348,7 +357,8 @@ graph LR
 
         <h3>"Server already running" Error</h3>
         <div class="success">
-            <p>This is normal! It means Claude Desktop already started the server. Your additional client should connect via WebSocket.</p>
+            <p>This is normal! It means Claude Desktop already started the server. Your additional client should connect
+                via WebSocket.</p>
         </div>
 
         <h3>WebSocket Connection Failed</h3>
@@ -360,7 +370,7 @@ graph LR
 
         <h3>Commands Not Working</h3>
         <ol>
-            <li>Check the Kapture panel is active in DevTools</li>
+            <li>Check the LLM Browser Bot panel is active in DevTools</li>
             <li>Verify the tab shows as connected (green status)</li>
             <li>Look for errors in the DevTools console</li>
         </ol>
@@ -435,7 +445,8 @@ curl http://localhost:61822/tab/{tabId}/screenshot/view > screenshot.png</code><
 
         <h2>Summary</h2>
 
-        <p>Running multiple AI assistants with Kapture enables powerful automation workflows. The key is understanding that:</p>
+        <p>Running multiple AI assistants with Kapture enables powerful automation workflows. The key is understanding
+            that:</p>
 
         <ol>
             <li>Claude Desktop manages the server lifecycle via the bridge command</li>
@@ -447,8 +458,10 @@ curl http://localhost:61822/tab/{tabId}/screenshot/view > screenshot.png</code><
         <p>Start simple with two clients, then expand as you become comfortable with the coordination patterns.</p>
 
         <div class="highlight">
-            <strong>Ready to start?</strong> Follow the setup guide above and begin automating with multiple AI assistants today!
+            <strong>Ready to start?</strong> Follow the setup guide above and begin automating with multiple AI
+            assistants today!
         </div>
     </div>
 </body>
+
 </html>

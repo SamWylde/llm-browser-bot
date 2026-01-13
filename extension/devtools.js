@@ -1,6 +1,6 @@
 // Create DevTools panel
 chrome.devtools.panels.create(
-  "Kapture",
+  "LLM Browser Bot",
   null,
   "panel.html"
 );

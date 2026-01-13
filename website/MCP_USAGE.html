@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Using Kapture with MCP Clients - Documentation</title>
+    <title>Using LLM Browser Bot with MCP Clients - Documentation</title>
     <style>
         * {
             margin: 0;
@@ -23,7 +24,7 @@
             margin: 0 auto;
             padding: 40px 20px;
             background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
         }
 
         h1 {
@@ -61,7 +62,8 @@
             line-height: 1.8;
         }
 
-        ul, ol {
+        ul,
+        ol {
             margin: 15px 0;
             padding-left: 30px;
         }
@@ -219,7 +221,8 @@
             margin: 20px 0;
         }
 
-        th, td {
+        th,
+        td {
             border: 1px solid #e2e8f0;
             padding: 12px;
             text-align: left;
@@ -241,18 +244,18 @@
 
         .quick-start h2 {
             color: white;
-            border-bottom: 2px solid rgba(255,255,255,0.3);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
             margin-bottom: 20px;
         }
 
         .quick-start code {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
             color: white;
         }
 
         .quick-start pre {
-            background: rgba(0,0,0,0.2);
-            border-color: rgba(255,255,255,0.2);
+            background: rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         .quick-start pre code {
@@ -274,13 +277,15 @@
         mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
     </script>
 </head>
+
 <body>
     <div class="container">
         <a href="index.html" class="back-link">← Back to Documentation</a>
 
-        <h1>Using Kapture with MCP Clients</h1>
+        <h1>Using LLM Browser Bot with MCP Clients</h1>
 
-        <p>This guide explains how to configure and use Kapture with Model Context Protocol (MCP) clients like Claude Desktop, Cline, and custom implementations.</p>
+        <p>This guide explains how to configure and use LLM Browser Bot with Model Context Protocol (MCP) clients like
+            Claude Desktop, Cline, and custom implementations.</p>
 
         <div class="toc">
             <h2>Table of Contents</h2>
@@ -301,7 +306,8 @@
 
             <h3>1. Install the Chrome Extension</h3>
             <ol>
-                <li>Download from <a href="https://github.com/williamkapke/kapture/releases" style="color: white; text-decoration: underline;">releases</a> or clone the repo</li>
+                <li>Download from <a href="https://github.com/SamWylde/llm-browser-bot/releases"
+                        style="color: white; text-decoration: underline;">releases</a> or clone the repo</li>
                 <li>Open <code>chrome://extensions/</code></li>
                 <li>Enable "Developer mode"</li>
                 <li>Click "Load unpacked" and select the <code>extension</code> folder</li>
@@ -309,22 +315,23 @@
 
             <h3>2. Configure Your MCP Client</h3>
 
-            <p><strong>Claude Desktop</strong> (<code>~/Library/Application Support/Claude/claude_desktop_config.json</code>):</p>
+            <p><strong>Claude Desktop</strong>
+                (<code>~/Library/Application Support/Claude/claude_desktop_config.json</code>):</p>
             <pre><code>{
-  "mcpServers": {
-    "kapture": {
-      "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
-    }
-  }
-}</code></pre>
+   "mcpServers": {
+     "llm-browser-bot": {
+       "command": "npx",
+       "args": ["-y", "llm-browser-bot", "bridge"]
+     }
+   }
+ }</code></pre>
 
             <p><strong>Cline/VS Code</strong> (settings.json):</p>
             <pre><code>{
   "cline.mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }</code></pre>
@@ -333,7 +340,7 @@
             <ol>
                 <li>Open any website in Chrome</li>
                 <li>Open DevTools (F12)</li>
-                <li>Click the "Kapture" panel</li>
+                <li>Click the "LLM Browser Bot" panel</li>
                 <li>You'll see "Connected" status</li>
             </ol>
 
@@ -352,11 +359,11 @@
         <h3>How Kapture Works</h3>
 
         <div class="mermaid">
-graph LR
-    MCP[MCP Client<br/>Claude/Cline] -->|stdio| B[bridge]
-    B -->|WebSocket| KS[Kapture Server]
-    KS --> CE[Chrome Extension]
-    CE --> BT[Browser Tabs]
+            graph LR
+            MCP[MCP Client<br />Claude/Cline] -->|stdio| B[bridge]
+            B -->|WebSocket| KS[LLM Browser Bot Server]
+            KS --> CE[Chrome Extension]
+            CE --> BT[Browser Tabs]
         </div>
 
         <h3>Key Components</h3>
@@ -368,7 +375,7 @@ graph LR
         </ol>
 
         <h3>Smart Server Management</h3>
-        <p>The <code>npx kapture-mcp</code> command includes intelligent server detection:</p>
+        <p>The <code>npx llm-browser-bot</code> command includes intelligent server detection:</p>
         <ul>
             <li>If no server is running: Starts a new server</li>
             <li>If server already exists: Shows connection info and exits gracefully</li>
@@ -389,9 +396,9 @@ graph LR
         <h4>Recommended: Bridge Command</h4>
         <pre><code>{
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }</code></pre>
@@ -408,9 +415,9 @@ graph LR
         <p>If you've cloned the repository:</p>
         <pre><code>{
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "node",
-      "args": ["/path/to/kapture/server/dist/index.js", "bridge"]
+      "args": ["/path/to/llm-browser-bot/llm-browser-bot/dist/index.js", "bridge"]
     }
   }
 }</code></pre>
@@ -419,11 +426,11 @@ graph LR
         <p>For custom integrations or manual server control:</p>
 
         <ol>
-            <li>Start server manually: <code>npx kapture-mcp</code></li>
+            <li>Start server manually: <code>npx llm-browser-bot</code></li>
             <li>Configure client:
                 <pre><code>{
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "transport": "websocket",
       "url": "ws://localhost:61822/mcp"
     }
@@ -450,7 +457,7 @@ graph LR
 
         <h2 id="available-tools">Available Tools</h2>
 
-        <p>Kapture provides 20 tools organized into functional categories:</p>
+        <p>LLM Browser Bot provides 20 tools organized into functional categories:</p>
 
         <h3>Navigation Tools</h3>
 
@@ -643,7 +650,7 @@ graph LR
                 <pre><code>{
   browser: "chrome"  // optional
 }</code></pre>
-                <p>Opens the Kapture how-to page.</p>
+                <p>Opens the LLM Browser Bot how-to page.</p>
             </div>
 
             <div class="tool-card">
@@ -660,10 +667,14 @@ graph LR
         <div class="warning">
             <p><strong>Key behaviors to remember:</strong></p>
             <ol>
-                <li><strong>First Element Only</strong>: Tools that accept selectors only operate on the first matching element</li>
-                <li><strong>Unique Selectors</strong>: Tools return the unique selector of the element they operated on</li>
-                <li><strong>XPath Support</strong>: Use <code>xpath</code> parameter instead of <code>selector</code> for XPath expressions</li>
-                <li><strong>Error Handling</strong>: Element-not-found returns success with error details, not an exception</li>
+                <li><strong>First Element Only</strong>: Tools that accept selectors only operate on the first matching
+                    element</li>
+                <li><strong>Unique Selectors</strong>: Tools return the unique selector of the element they operated on
+                </li>
+                <li><strong>XPath Support</strong>: Use <code>xpath</code> parameter instead of <code>selector</code>
+                    for XPath expressions</li>
+                <li><strong>Error Handling</strong>: Element-not-found returns success with error details, not an
+                    exception</li>
             </ol>
         </div>
 
@@ -900,8 +911,10 @@ async function runWithErrorMonitoring(tabId, automation) {
         <h3>Performance Tips</h3>
 
         <ol>
-            <li><strong>Keep Kapture Panel Active</strong>: Click/hover operations perform better when Kapture panel is selected</li>
-            <li><strong>Use Efficient Selectors</strong>: ID selectors are fastest, followed by class, then complex selectors</li>
+            <li><strong>Keep Kapture Panel Active</strong>: Click/hover operations perform better when Kapture panel is
+                selected</li>
+            <li><strong>Use Efficient Selectors</strong>: ID selectors are fastest, followed by class, then complex
+                selectors</li>
             <li><strong>Batch Operations</strong>: Group related commands together</li>
             <li><strong>Add Strategic Delays</strong>: Some interactions need time to complete</li>
         </ol>
@@ -942,7 +955,8 @@ elements.forEach(el => {
                 <li>Commands are queued per tab to prevent conflicts</li>
                 <li>All clients receive real-time notifications</li>
             </ol>
-            <p>See the <a href="https://williamkapke.github.io/kapture/MULTI_ASSISTANT_GUIDE.html">Multi-Assistant Guide</a> for detailed setup.</p>
+            <p>See the <a href="https://williamkapke.github.io/kapture/MULTI_ASSISTANT_GUIDE.html">Multi-Assistant
+                    Guide</a> for detailed setup.</p>
         </div>
 
         <h3>Custom MCP Client Integration</h3>
@@ -1033,4 +1047,5 @@ if (tabs.length === 0) {
         </div>
     </div>
 </body>
+
 </html>

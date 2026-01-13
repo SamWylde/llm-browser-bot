@@ -1,9 +1,9 @@
 # Jekyll configuration for GitHub Pages
-title: Kapture - Browser Automation for AI
+title: LLM Browser Bot - Browser Automation for AI
 description: Control your browser with AI using Chrome DevTools and the Model Context Protocol
 theme: jekyll-theme-minimal
-url: "https://williamkapke.github.io"
-baseurl: "/kapture"
+url: "https://samwylde.github.io"
+baseurl: "/llm-browser-bot"
 
 # Exclude files from processing
 exclude:

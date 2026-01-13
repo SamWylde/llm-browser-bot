@@ -1,10 +1,10 @@
-# Privacy Policy for Kapture Browser Automation
+# Privacy Policy for LLM Browser Bot Browser Automation
 
 **Last Updated: December 2024**
 
 ## Overview
 
-Kapture Browser Automation ("the Extension") is designed to enable local browser automation through the Model Context Protocol (MCP). This privacy policy explains how the Extension handles user data.
+LLM Browser Bot Browser Automation ("the Extension") is designed to enable local browser automation through the Model Context Protocol (MCP). This privacy policy explains how the Extension handles user data.
 
 ## Data Collection and Usage
 
@@ -80,8 +80,8 @@ We may update this privacy policy from time to time. Any changes will be reflect
 ## Contact
 
 For questions about this privacy policy or the Extension, please visit:
-https://github.com/williamkapke/kapture
+https://github.com/SamWylde/llm-browser-bot
 
 ## Consent
 
-By using the Kapture Browser Automation Extension, you consent to this privacy policy.
+By using the LLM Browser Bot Browser Automation Extension, you consent to this privacy policy.
