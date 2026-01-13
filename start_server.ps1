@@ -201,6 +201,7 @@ try {
     Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
     Write-Host ""
     cmd /c "npm start"
+    if ($LASTEXITCODE -ne 0) { throw "Server exited with error code $LASTEXITCODE" }
 
 } catch {
     Write-Error "`n[Startup] Error: $_"
