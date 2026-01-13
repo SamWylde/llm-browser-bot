@@ -16,7 +16,7 @@ if (!command || command === 'server') {
   const child = spawn(process.execPath, [serverPath, ...args], {
     stdio: 'inherit'
   });
-  
+
   child.on('exit', (code) => {
     process.exit(code || 0);
   });
@@ -25,7 +25,7 @@ if (!command || command === 'server') {
   const child = spawn(process.execPath, [bridgePath, ...process.argv.slice(3)], {
     stdio: 'inherit'
   });
-  
+
   child.on('exit', (code) => {
     process.exit(code || 0);
   });
@@ -34,13 +34,13 @@ if (!command || command === 'server') {
   const child = spawn(process.execPath, [setupPath, ...process.argv.slice(3)], {
     stdio: 'inherit'
   });
-  
+
   child.on('exit', (code) => {
     process.exit(code || 0);
   });
 } else {
   console.error(`Unknown command: ${command}`);
-  console.error('Usage: kapture-mcp [command]');
+  console.error('Usage: llm-browser-bot [command]');
   console.error('Commands:');
   console.error('  server  Run the MCP server (default)');
   console.error('  bridge  Run the stdio-to-websocket bridge');

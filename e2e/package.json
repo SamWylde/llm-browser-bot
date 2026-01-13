@@ -1,5 +1,5 @@
 {
-  "name": "kapture-e2e-tests",
+  "name": "llm-browser-bot-e2e-tests",
   "version": "1.0.0",
   "description": "End-to-end tests for Kapture MCP Browser Automation",
   "type": "module",

@@ -1,6 +1,6 @@
-# Kapture MCP Server
+# LLM Browser Bot Server
 
-MCP server for Kapture browser automation. This server enables AI assistants like Claude to control web browsers through the Kapture Chrome extension.
+MCP server for LLM Browser Bot automation. This server enables AI assistants like Claude to control web browsers through the LLM Browser Bot Chrome extension.
 
 **✨ Key Feature**: Support for multiple AI assistants running simultaneously! All clients connect via WebSocket to the same server.
 
@@ -9,7 +9,7 @@ MCP server for Kapture browser automation. This server enables AI assistants lik
 ### Run with npx (no installation required)
 
 ```bash
-npx kapture-mcp
+npx llm-browser-bot
 ```
 
 The server automatically runs on port 61822.
@@ -17,14 +17,14 @@ The server automatically runs on port 61822.
 ### Bridge mode (Alternative for stdio-based MCP clients)
 
 ```bash
-npx kapture-mcp bridge
+npx llm-browser-bot bridge
 ```
 
 This starts the server and provides stdio-to-WebSocket translation using the built-in mcp2websocket bridge.
 
 ### Smart Server Detection
 
-When running `npx kapture-mcp`, it automatically detects if a server is already running:
+When running `npx llm-browser-bot`, it automatically detects if a server is already running:
 - **No existing server**: Starts a new server
 - **Server already running**: Shows connection info and exits gracefully
 
@@ -33,13 +33,13 @@ This prevents port conflicts and provides helpful information about existing con
 ### Install globally
 
 ```bash
-npm install -g kapture-mcp
+npm install -g llm-browser-bot
 ```
 
 ### Install locally in a project
 
 ```bash
-npm install kapture-mcp
+npm install llm-browser-bot
 ```
 
 ## Usage with Claude Desktop
@@ -49,9 +49,9 @@ This single command starts the server and handles stdio communication:
 ```json
 {
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }
@@ -60,14 +60,14 @@ This single command starts the server and handles stdio communication:
 ### Alternative: Direct WebSocket connection
 First start the server:
 ```bash
-npx kapture-mcp
+npx llm-browser-bot
 ```
 
 Then configure Claude Desktop to use WebSocket transport:
 ```json
 {
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "transport": "websocket",
       "url": "ws://localhost:61822/mcp"
     }
@@ -84,7 +84,7 @@ The server always runs on port 61822
 
 ## Running Multiple AI Assistants
 
-Kapture supports multiple AI clients through a single server instance:
+LLM Browser Bot supports multiple AI clients through a single server instance:
 
 - **All clients**: Connect via WebSocket to `ws://localhost:61822/mcp`
 - All clients share access to the same browser tabs
@@ -93,16 +93,16 @@ Kapture supports multiple AI clients through a single server instance:
 
 Start the server manually:
 ```bash
-npx kapture-mcp
+npx llm-browser-bot
 ```
 
 Claude Desktop (claude_desktop_config.json):
 ```json
 {
   "mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "command": "npx",
-      "args": ["-y", "kapture-mcp", "bridge"]
+      "args": ["-y", "llm-browser-bot", "bridge"]
     }
   }
 }
@@ -112,7 +112,7 @@ Cline (VS Code settings.json) - WebSocket connection:
 ```json
 {
   "cline.mcpServers": {
-    "kapture": {
+    "llm-browser-bot": {
       "transport": "websocket",
       "url": "ws://localhost:61822/mcp"
     }
@@ -125,12 +125,12 @@ All connected clients can control the same browser tabs simultaneously.
 ## Requirements
 
 - Node.js 18 or higher
-- Chrome browser with Kapture extension installed
+- Chrome browser with LLM Browser Bot extension installed
 
 ## How it Works
 
 1. The MCP server starts and listens on port 61822
-2. The Kapture Chrome extension connects to the server via WebSocket
+2. The LLM Browser Bot Chrome extension connects to the server via WebSocket
 3. AI assistants can now control the browser through MCP tools
 
 ## Server Architecture
@@ -147,7 +147,7 @@ graph LR
         MCPN["MCP Client N<br/>Custom"]
     end
     
-    subgraph "Kapture MCP Server [:61822]"
+    subgraph "LLM Browser Bot MCP Server [:61822]"
         WSS_MCP["ws://localhost:61822/mcp"]
         HTTP["HTTP Server"]
         
@@ -247,7 +247,7 @@ graph LR
 ## Documentation
 
 For full documentation and Chrome extension installation, visit:
-https://github.com/williamkapke/kapture
+https://github.com/SamWylde/llm-browser-bot
 
 ## License
 

@@ -22,7 +22,7 @@ import { detectAssistants, configureAssistants } from './assistant-manager.js';
 // ========================================================================
 
 // Set process title for better identification
-process.title = 'Kapture MCP Server';
+process.title = 'LLM Browser Bot Server';
 
 // Fixed port for all connections
 const PORT = 61822;
@@ -144,7 +144,7 @@ const httpServer = createServer(async (req, res) => {
       req.on('data', chunk => {
         body += chunk.toString();
       });
-      
+
       req.on('end', () => {
         try {
           const assistantsToConfig = JSON.parse(body);
@@ -195,7 +195,7 @@ const httpServer = createServer(async (req, res) => {
       }
       else {
         let result = contents[0].text;
-        if(!isError && kaptureUri.includes('/screenshot')) {
+        if (!isError && kaptureUri.includes('/screenshot')) {
           // move the image data to the first object
           const reslutObj = JSON.parse(contents[0].text);
           result = JSON.stringify({
@@ -205,7 +205,7 @@ const httpServer = createServer(async (req, res) => {
           });
         }
         // Regular resource endpoints
-        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(result);
       }
     } catch (error: any) {

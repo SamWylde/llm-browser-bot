@@ -1,4 +1,4 @@
-// Renderer process for Kapture MCP Test Client
+// Renderer process for LLM Browser Bot Test Client
 let connected = false;
 let currentTools = [];
 let currentResources = [];
@@ -354,7 +354,7 @@ function displaySelectedItem() {
   if (!selectedItem || !selectedTabId) {
     contentContainerEl.innerHTML = `
       <div class="empty-state">
-        <h2>Welcome to Kapture Test Client</h2>
+        <h2>Welcome to LLM Browser Bot Test Client</h2>
         <p>Select a tab from the sidebar to get started</p>
         <p class="hint">Tools and resources will appear once a tab is selected</p>
       </div>
@@ -483,9 +483,9 @@ function createToolCard(tool) {
         inputHtml = `<select id="${inputId}" ${isRequired ? 'required' : ''}>`;
         schema.enum.forEach(option => {
           const isDefault = schema.default === option;
-          const label = option === 'true' ? 'Only visible elements' : 
-                       option === 'false' ? 'Only hidden elements' : 
-                       'All elements';
+          const label = option === 'true' ? 'Only visible elements' :
+            option === 'false' ? 'Only hidden elements' :
+              'All elements';
           inputHtml += `<option value="${option}" ${isDefault ? 'selected' : ''}>${label}</option>`;
         });
         inputHtml += `</select>`;
@@ -1311,7 +1311,7 @@ window.electronAPI.onMCPDisconnected((data) => {
 window.electronAPI.onMCPError((data) => {
   if (data.type === 'PORT_IN_USE') {
     log(data.message, 'error');
-    alert('Port 61822 is already in use!\n\nPlease stop any running Kapture server instances:\n- Check for other terminal windows running "npm start"\n- Check for other Electron test app instances\n- Use "lsof -i :61822" to find the process');
+    alert('Port 61822 is already in use!\n\nPlease stop any running LLM Browser Bot server instances:\n- Check for other terminal windows running "npm start"\n- Check for other Electron test app instances\n- Use "lsof -i :61822" to find the process');
     connected = false;
     statusEl.classList.remove('connected');
     statusTextEl.textContent = 'Port In Use';
@@ -1387,7 +1387,7 @@ document.addEventListener('mouseup', () => {
 });
 
 // Initial state
-log('Kapture MCP Test Client ready');
+log('LLM Browser Bot Test Client ready');
 
 // Setup navigation listeners
 setupNavigationListeners();

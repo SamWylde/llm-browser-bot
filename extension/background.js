@@ -1,7 +1,7 @@
 // Background service worker - manages WebSocket connections
 
 import { TabManager } from './modules/tab-manager.js';
-import {ConsoleLogEntry} from "./modules/models.js";
+import { ConsoleLogEntry } from "./modules/models.js";
 
 // Single source of truth for all tab state
 const tabManager = new TabManager();
@@ -126,14 +126,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   if (sender.tab) {
     if (request.type === 'contentScriptReady') {
       console.log(`Content script ready in tab ${sender.tab.id}`);
-      
+
       // Send current connection state to the newly ready content script
       const tabState = tabManager.getTab(sender.tab.id);
       if (tabState) {
         const connectionState = tabState.getConnectionState();
         sendConnectionStateToTab(sender.tab.id, connectionState);
       }
-      
+
       sendResponse({ acknowledged: true });
       return false;
     }
@@ -224,7 +224,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    const destination = { url: 'https://to.kap.co/kapture-welcome' };
+    const destination = { url: 'https://samwylde.github.io/llm-browser-bot/welcome' };
     // Navigate the current active tab instead of creating a new one
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {

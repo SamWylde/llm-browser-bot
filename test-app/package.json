@@ -1,8 +1,8 @@
 {
-  "name": "kapture-test-app",
-  "productName": "Kapture Test Client",
+  "name": "llm-browser-bot-test-app",
+  "productName": "LLM Browser Bot Test Client",
   "version": "1.0.0",
-  "description": "Electron test app for Kapture MCP server",
+  "description": "Electron test app for LLM Browser Bot MCP server",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -11,9 +11,9 @@
   "keywords": [
     "mcp",
     "electron",
-    "kapture"
+    "llm-browser-bot"
   ],
-  "author": "Kapture Team",
+  "author": "Sam Wylde",
   "license": "MIT",
   "devDependencies": {
     "electron": "^27.0.0"

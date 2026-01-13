@@ -57,7 +57,7 @@ tools:
     description: >-
       Click on a page element using CSS selector or XPath. Only the first 
       matching element will be clicked. Returns the unique selector of the 
-      clicked element. Note: May experience delays if Kapture DevTools panel 
+      clicked element. Note: May experience delays if LLM Browser Bot DevTools panel 
       is not the active tab.
     required: [tabId]
     properties:
@@ -69,7 +69,7 @@ tools:
     description: >-
       Hover over a page element using CSS selector or XPath. Only the first 
       matching element will be hovered. Returns the unique selector of the 
-      hovered element. Note: May experience delays if Kapture DevTools panel 
+      hovered element. Note: May experience delays if LLM Browser Bot DevTools panel 
       is not the active tab.
     required: [tabId]
     <<: *oneOfSelectorOrXpath
@@ -255,8 +255,8 @@ tools:
 
   new_tab:
     description: >-
-      Opens a new browser tab with the Kapture MCP usage documentation page. 
-      The page will automatically connect to the Kapture server. Returns the 
+      Opens a new browser tab with the LLM Browser Bot MCP usage documentation page. 
+      The page will automatically connect to the LLM Browser Bot server. Returns the 
       tab ID of the newly opened tab once it connects.
     properties:
       browser:

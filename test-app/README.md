@@ -1,12 +1,12 @@
-# Kapture MCP Test Client
+# LLM Browser Bot Test Client
 
-A robust Electron-based test application for the Kapture MCP server that connects via WebSocket to test the multi-connection capability.
+A robust Electron-based test application for the LLM Browser Bot MCP server that connects via WebSocket to test the multi-connection capability.
 
 ## Overview
 
-This test client provides a comprehensive development and testing environment for the Kapture MCP server, featuring a modern browser-style interface with real-time tab management, tool discovery, and execution capabilities.
+This test client provides a comprehensive development and testing environment for the LLM Browser Bot MCP server, featuring a modern browser-style interface with real-time tab management, tool discovery, and execution capabilities.
 
-![Kapture MCP Test Client Interface](screenshot.webp)
+![LLM Browser Bot Test Client Interface](screenshot.webp)
 
 ## Key Features
 
