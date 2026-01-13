@@ -6,6 +6,8 @@ $userAgent = "LLM-Browser-Bot-Updater"
 
 Write-Host "[Update] Checking for updates..."
 
+$updatePerformed = $false
+
 # Method 1: Try Git
 # We check for .git directory to ensure it's a git repo, and git command availability
 if ((Test-Path ".git") -and (Get-Command "git" -ErrorAction SilentlyContinue)) {
@@ -14,7 +16,7 @@ if ((Test-Path ".git") -and (Get-Command "git" -ErrorAction SilentlyContinue)) {
         $gitOutput = git pull 2>&1
         if ($LASTEXITCODE -eq 0) { 
             Write-Host "[Update] Git update successful."
-            exit 0 
+            $updatePerformed = $true
         } else {
             Write-Warning "[Update] Git pull failed. Output: $gitOutput"
             Write-Warning "[Update] Falling back to direct download..."
@@ -27,7 +29,9 @@ if ((Test-Path ".git") -and (Get-Command "git" -ErrorAction SilentlyContinue)) {
 }
 
 # Method 2: Direct Download from GitHub
-try {
+if (-not $updatePerformed) {
+    try {
+
     # 1. Get latest commit SHA from GitHub API
     $apiUrl = "https://api.github.com/repos/$repo/commits/$branch"
     try {
@@ -36,7 +40,6 @@ try {
     } catch {
         Write-Warning "[Update] Failed to check for updates (API check failed). Skipping update."
         Write-Warning "[Update] Error: $_"
-        exit 0 
     }
 
     # 2. Check local version
@@ -47,8 +50,7 @@ try {
 
     if ($latestSha -eq $localSha) {
         Write-Host "[Update] Already up to date (Version: $latestSha)."
-        exit 0
-    }
+    } else {
 
     Write-Host "[Update] New version found ($latestSha)."
     Write-Host "[Update] Downloading latest source..."
@@ -159,9 +161,11 @@ try {
         if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
     }
 
+    }
 } catch {
     Write-Warning "[Update] Update check failed or encountered an error: $_"
     Write-Warning "[Update] Continuing with existing version..."
+}
 }
 
 # ==============================================================================
