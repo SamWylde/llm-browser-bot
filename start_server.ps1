@@ -56,7 +56,14 @@ if (-not $updatePerformed) {
     Write-Host "[Update] Downloading latest source..."
     
     # 3. Create Backup
-    $backupDir = "backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    $backupDir = "backup_previous_version"
+    
+    # Remove old backup if it exists
+    if (Test-Path $backupDir) {
+        Write-Host "[Update] Removing old backup..."
+        Remove-Item $backupDir -Recurse -Force
+    }
+
     Write-Host "[Update] Creating backup at $backupDir..."
     New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
     
