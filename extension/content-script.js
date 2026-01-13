@@ -20,9 +20,12 @@ function ready() {
 
   // Check for auto-connect querystring parameter
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('kapture-connect') === 'true') {
+  if (urlParams.get('auto-connect') === 'true' || urlParams.get('kapture-connect') === 'true') {
     chrome.runtime.sendMessage({ type: 'connect' });
-    chrome.runtime.sendMessage({ type: 'openPopup' });
+    // Only open popup if requested explicitly, otherwise keep it background
+    if (urlParams.get('show-popup') === 'true') {
+      chrome.runtime.sendMessage({ type: 'openPopup' });
+    }
   }
 }
 

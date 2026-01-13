@@ -75,7 +75,7 @@ export class BrowserCommandHandler {
   async newTab(browser?: string): Promise<any> {
     // Generate a unique session ID for this tab
     const sessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const targetUrl = `https://samwylde.github.io/llm-browser-bot/how-to.html#session=${sessionId}`;
+    const targetUrl = `https://samwylde.github.io/llm-browser-bot/how-to.html?auto-connect=true#session=${sessionId}`;
 
     // Open the browser with the URL using system command
     const platform = process.platform;
@@ -169,7 +169,7 @@ export class BrowserCommandHandler {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    throw new Error('New tab failed to connect within timeout. Make sure the Kapture extension is installed.');
+    throw new Error('New tab failed to connect within timeout. Make sure the LLM Browser Bot extension is installed.');
   }
 
   // ========================================================================
