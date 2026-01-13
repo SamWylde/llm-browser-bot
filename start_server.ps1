@@ -160,8 +160,41 @@ try {
     }
 
 } catch {
-    Write-Error "[Update] Update failed: $_"
-    # We exit with 0 to allow the server to try starting anyway, 
-    # as the current version might still be functional.
-    exit 0 
+    Write-Warning "[Update] Update check failed or encountered an error: $_"
+    Write-Warning "[Update] Continuing with existing version..."
+}
+
+# ==============================================================================
+# 2. Install, Build, and Start
+# ==============================================================================
+
+$serverDir = "server"
+if (-not (Test-Path $serverDir)) {
+    Write-Error "Error: '$serverDir' directory not found!"
+    exit 1
+}
+
+Push-Location $serverDir
+
+try {
+    Write-Host "`n[Startup] [1/3] Installing dependencies..." -ForegroundColor Cyan
+    # Use cmd /c specifically for npm to ensure it runs correctly in all PS environments
+    cmd /c "npm install"
+    if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
+
+    Write-Host "`n[Startup] [2/3] Building server..." -ForegroundColor Cyan
+    cmd /c "npm run build"
+    if ($LASTEXITCODE -ne 0) { throw "Build failed" }
+
+    Write-Host "`n[Startup] [3/3] Starting server..." -ForegroundColor Green
+    Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
+    Write-Host ""
+    cmd /c "npm start"
+
+} catch {
+    Write-Error "`n[Startup] Error: $_"
+    Read-Host "Press Enter to exit..."
+    exit 1
+} finally {
+    Pop-Location
 }
