@@ -6,9 +6,16 @@ echo      LLM Browser Bot - Update & Start
 echo ==========================================
 
 echo [1/4] Checking for updates...
-git pull
+where git >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
-    echo Warning: Failed to pull updates from git. Continuing with local version...
+    echo.
+    echo Warning: Git is not found in your PATH. Skipping update...
+) else (
+    git pull
+    if %ERRORLEVEL% NEQ 0 (
+        echo.
+        echo Warning: Failed to pull updates from git. Continuing with local version...
+    )
 )
 
 cd server || (echo Error: server directory not found & pause & exit /b 1)

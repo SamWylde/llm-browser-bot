@@ -264,7 +264,7 @@ async function startServer() {
 
   httpServer.listen(PORT, () => {
     console.log('='.repeat(70));
-    console.log('Kapture MCP Server Started');
+    console.log('LLM Browser Bot Server Started');
     console.log();
     console.log('HTTP Endpoints:');
     console.log(`  Discovery: http://localhost:${PORT}/`);
