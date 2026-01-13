@@ -37,9 +37,16 @@ jobs:
           mkdir -p ./build
           # Copy website files
           cp -r website/* ./build/
-          # Create static directory and copy welcome.html from server
+          # Copy welcome.html from server to root of build
           cp server/static/welcome.html ./build/welcome.html
-          
+
+      - name: Verify build contents
+        run: |
+          echo "=== Build directory contents ==="
+          ls -la ./build/
+          echo "=== Verifying welcome.html exists ==="
+          test -f ./build/welcome.html && echo "welcome.html: OK" || echo "welcome.html: MISSING"
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
         
