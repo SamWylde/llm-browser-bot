@@ -194,6 +194,8 @@ Then ask Claude to interact with web pages:
 - `select` - Select dropdown options (HTML `<select>` only, uses first matching element)
 - `keypress` - Send keyboard events with modifier key support
 - `type` - Human-like character-by-character typing with delays between keystrokes
+- `paste` - Paste text into input/contenteditable (simulates clipboard events)
+- `clear` - Clear value from input/contenteditable
 - `focus` - Focus an element
 - `blur` - Remove focus from an element
 
