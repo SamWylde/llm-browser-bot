@@ -65,7 +65,7 @@ tools:
       <<: *selectorAndXpath
       timeout:
         type: number
-        description: Command timeout in milliseconds (default 30000)
+        description: Command timeout in milliseconds (default 8000)
     <<: *oneOfSelectorOrXpath
 
   hover:
