@@ -3,10 +3,11 @@
 ## Quick Reference
 
 ### Getting Started
-1. **List available tabs**: Use `list_tabs` to see connected browser tabs
-2. **Get the tabId**: Extract `tabId` from the response - you need this for all commands
-3. **Navigate**: Use `navigate` with `tabId` and `url` to go to a page
-4. **Interact**: Use `click`, `fill`, `select`, etc. to interact with elements
+1. **Get the active tab**: Use `get_active_tab` to get the currently focused browser tab
+2. **Or list all tabs**: Use `list_tabs` to see all connected browser tabs (includes `active` property)
+3. **Get the tabId**: Extract `tabId` from the response - you need this for all commands
+4. **Navigate**: Use `navigate` with `tabId` and `url` to go to a page
+5. **Interact**: Use `click`, `fill`, `select`, etc. to interact with elements
 
 ### Tool Naming Convention
 All multi-word tool names use **underscores**:
@@ -19,6 +20,7 @@ All multi-word tool names use **underscores**:
 
 | Tool | Purpose | Required Params |
 |------|---------|-----------------|
+| `get_active_tab` | Get currently focused tab | none |
 | `list_tabs` | Get all connected tabs | none |
 | `navigate` | Go to URL | `tabId`, `url` |
 | `click` | Click element | `tabId`, `selector` or `xpath` |
@@ -135,7 +137,8 @@ For pages that load content asynchronously:
 - `console_logs` - Get console output
 
 ### Tab Management
-- `list_tabs` - List all tabs
+- `get_active_tab` - Get currently focused tab (recommended starting point)
+- `list_tabs` - List all tabs (each has `active` property)
 - `tab_detail` - Get tab info
 - `new_tab` - Open new tab
 - `close` - Close tab

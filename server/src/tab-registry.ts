@@ -14,6 +14,7 @@ export interface TabConnection {
   viewportDimensions?: { width: number; height: number };
   scrollPosition?: { x: number; y: number };
   pageVisibility?: { visible: boolean; visibilityState: string };
+  active?: boolean;  // Whether this tab is the currently focused tab in the browser
 }
 
 export class TabRegistry {
@@ -97,6 +98,7 @@ export class TabRegistry {
     viewportDimensions?: { width: number; height: number };
     scrollPosition?: { x: number; y: number };
     pageVisibility?: { visible: boolean; visibilityState: string };
+    active?: boolean;
   }): void {
     const connection = this.tabs.get(tabId);
     if (connection) {
@@ -107,7 +109,8 @@ export class TabRegistry {
                        (info.fullPageDimensions !== undefined) ||
                        (info.viewportDimensions !== undefined) ||
                        (info.scrollPosition !== undefined) ||
-                       (info.pageVisibility !== undefined);
+                       (info.pageVisibility !== undefined) ||
+                       (info.active !== undefined && connection.active !== info.active);
 
       if (info.url !== undefined) connection.url = info.url;
       if (info.title !== undefined) connection.title = info.title;
@@ -117,6 +120,7 @@ export class TabRegistry {
       if (info.viewportDimensions !== undefined) connection.viewportDimensions = info.viewportDimensions;
       if (info.scrollPosition !== undefined) connection.scrollPosition = info.scrollPosition;
       if (info.pageVisibility !== undefined) connection.pageVisibility = info.pageVisibility;
+      if (info.active !== undefined) connection.active = info.active;
 
       // Call the update callback if there was a change
       if (hadChange && this.updateCallback) {
@@ -125,6 +129,39 @@ export class TabRegistry {
         });
       }
     }
+  }
+
+  // Set a tab as active and clear active status from all other tabs
+  setActiveTab(tabId: string): void {
+    let hadChange = false;
+
+    // Clear active from all tabs and set on the specified tab
+    for (const [id, connection] of this.tabs) {
+      const wasActive = connection.active;
+      connection.active = (id === tabId);
+      if (wasActive !== connection.active) {
+        hadChange = true;
+      }
+    }
+
+    if (hadChange) {
+      logger.log(`Active tab changed to: ${tabId}`);
+      if (this.updateCallback) {
+        this.updateCallback(tabId).catch(err => {
+          logger.error(`Error in update callback for active tab ${tabId}:`, err);
+        });
+      }
+    }
+  }
+
+  // Get the currently active tab
+  getActiveTab(): TabConnection | undefined {
+    for (const connection of this.tabs.values()) {
+      if (connection.active) {
+        return connection;
+      }
+    }
+    return undefined;
   }
 
   updateLastPing(tabId: string): void {

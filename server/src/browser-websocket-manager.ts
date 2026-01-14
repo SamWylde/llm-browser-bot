@@ -164,6 +164,15 @@ export class BrowserWebSocketManager {
         }
         break;
 
+      case 'tab-active':
+        // Handle active tab change - mark this tab as active and others as inactive
+        const activeConnection = this.tabRegistry.findByWebSocket(ws);
+        if (activeConnection) {
+          this.tabRegistry.setActiveTab(activeConnection.tabId);
+          logger.log(`Tab ${activeConnection.tabId} is now active`);
+        }
+        break;
+
       case 'console-log':
         // Handle console log updates - forward to MCP notification handler
         const logConnection = this.tabRegistry.findByWebSocket(ws);

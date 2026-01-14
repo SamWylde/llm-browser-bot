@@ -226,11 +226,19 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   }
 });
 
-// Update badge when active tab changes
+// Update badge when active tab changes and notify server
 chrome.tabs.onActivated.addListener((activeInfo) => {
   const tabState = tabManager.getTab(activeInfo.tabId);
   if (tabState) {
     updateActionBadge(tabState.getConnectionState());
+
+    // Notify server that this tab is now active
+    if (tabState.websocket && tabState.websocket.readyState === WebSocket.OPEN) {
+      tabState.websocket.send(JSON.stringify({
+        type: 'tab-active',
+        tabId: activeInfo.tabId.toString()
+      }));
+    }
   } else {
     updateActionBadge({ status: 'disconnected' });
   }

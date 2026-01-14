@@ -19,7 +19,15 @@ _common:
 
 tools:
   list_tabs:
-    description: List all connected browser tabs
+    description: >-
+      List all connected browser tabs. Each tab includes an 'active' property
+      indicating whether it is the currently focused tab in the browser.
+
+  get_active_tab:
+    description: >-
+      Get the currently active (focused) browser tab. Returns the tab that the
+      user is currently viewing. Returns null if no tabs are connected or if
+      the active tab is not connected to the server.
 
   tab_detail:
     description: Get detailed information about a specific tab
