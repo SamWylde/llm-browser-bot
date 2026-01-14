@@ -72,6 +72,19 @@ export class BrowserCommandHandler {
   // Special Commands
   // ========================================================================
 
+  async getAllBrowserTabs(): Promise<any[]> {
+    // We need at least one connected tab to bridge the request to the background script
+    const tabs = this.tabRegistry.getAll();
+    if (tabs.length === 0) {
+      return [];
+    }
+
+    // Pick the first available tab
+    const bridgeTabId = tabs[0].tabId;
+
+    return this.executeCommand('getAllTabs', { tabId: bridgeTabId });
+  }
+
   async newTab(browser?: string): Promise<any> {
     // Generate a unique session ID for this tab
     const sessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;

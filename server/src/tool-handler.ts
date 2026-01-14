@@ -37,9 +37,42 @@ export class ToolHandler {
       let result: any;
       switch (name) {
         case 'list_tabs':
-          const tabs = this.tabRegistry.getAll().map(tab => formatTabDetail(tab));
-          result = { tabs };
-          if (tabs.length === 0) {
+          try {
+            // Try to get all tabs from the browser (requires at least one connected tab)
+            const browserTabs = await this.commandHandler.getAllBrowserTabs();
+
+            // Map browser tabs to our format and check connection status
+            if (browserTabs && Array.isArray(browserTabs)) {
+              const connectedTabIds = new Set(this.tabRegistry.getAll().map(t => t.tabId));
+              const allTabs = browserTabs.map((t: any) => ({
+                tabId: t.id.toString(),
+                title: t.title,
+                url: t.url,
+                active: t.active,
+                connected: connectedTabIds.has(t.id.toString())
+              }));
+              result = { tabs: allTabs };
+              if (connectedTabIds.size === 0) {
+                result.hint = 'No tabs are currently connected to the server.';
+              }
+            } else {
+              // Fallback to registry if command failed or returned invalid data
+              const tabs = this.tabRegistry.getAll().map(tab => ({
+                ...formatTabDetail(tab),
+                connected: true
+              }));
+              result = { tabs };
+            }
+          } catch (e) {
+            // Fallback if bridge command fails (e.g. timeout)
+            const tabs = this.tabRegistry.getAll().map(tab => ({
+              ...formatTabDetail(tab),
+              connected: true
+            }));
+            result = { tabs };
+          }
+
+          if (result.tabs.length === 0) {
             result.hint = 'There currently are no tabs connected. Use the new_tab tool to create one!';
           }
           break;

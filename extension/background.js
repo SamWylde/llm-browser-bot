@@ -213,6 +213,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       sendResponse(tabState ? tabState.getConnectionState() : { connected: false, status: 'disconnected' });
       return false;
     }
+
+    if (request.type === 'getAllTabs') {
+      try {
+        const tabs = await chrome.tabs.query({});
+        sendResponse(tabs);
+      } catch (e) {
+        sendResponse({ error: e.message });
+      }
+      return true; // Keep message channel open for async
+    }
   }
 });
 

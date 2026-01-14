@@ -8,7 +8,8 @@
   "homepage_url": "https://github.com/SamWylde/llm-browser-bot",
   "permissions": [
     "activeTab",
-    "debugger"
+    "debugger",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"
