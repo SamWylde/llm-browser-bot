@@ -529,6 +529,98 @@ const helpers = {
 
     return respondWith({ filled: true }, selector, xpath);
   },
+
+  paste: ({ selector, xpath, value }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+
+    let element;
+    try {
+      element = findAllElements(selector, xpath)[0];
+    } catch (e) {
+      const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+      return respondWithError(errorCode, e.message, selector, xpath);
+    }
+
+    if (!element) return elementNotFound(selector, xpath);
+
+    element.focus();
+
+    // Try execCommand 'insertText' first as it simulates user input best
+    let success = false;
+    try {
+      success = document.execCommand('insertText', false, value);
+    } catch (e) {
+      // Fallback
+    }
+
+    if (!success) {
+      // Fallback: Dispatch paste event and manual insertion
+      const pasteEvent = new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new DataTransfer()
+      });
+      pasteEvent.clipboardData.setData('text/plain', value);
+
+      if (element.dispatchEvent(pasteEvent)) {
+        // If event wasn't cancelled, manually insert
+        if (element.value !== undefined) {
+          const start = element.selectionStart || element.value.length;
+          const end = element.selectionEnd || element.value.length;
+          const text = element.value;
+          element.value = text.slice(0, start) + value + text.slice(end);
+          // Restore cursor
+          element.selectionStart = element.selectionEnd = start + value.length;
+        } else if (element.isContentEditable) {
+          // Simple append for contentEditable fallback
+          element.textContent += value;
+        }
+
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        success = true;
+      }
+    }
+
+    return respondWith({ pasted: success }, selector, xpath);
+  },
+
+  clear: ({ selector, xpath }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+
+    let element;
+    try {
+      element = findAllElements(selector, xpath)[0];
+    } catch (e) {
+      const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+      return respondWithError(errorCode, e.message, selector, xpath);
+    }
+
+    if (!element) return elementNotFound(selector, xpath);
+
+    const inputTypes = ['input', 'textarea'];
+    if (!inputTypes.includes(element.tagName.toLowerCase()) && !element.isContentEditable) {
+      return respondWithError('INVALID_ELEMENT', 'Element is not clearable: ' + element.tagName, selector, xpath);
+    }
+
+    element.focus();
+
+    // Clear value
+    if (element.value !== undefined) {
+      element.value = '';
+    } else if (element.isContentEditable) {
+      element.textContent = '';
+    }
+
+    // Trigger events
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Blur
+    element.blur();
+
+    return respondWith({ cleared: true }, selector, xpath);
+  },
   select: ({ selector, xpath, value }) => {
     if (!selector && !xpath) return requireSelectorOrXpath();
 
@@ -1218,24 +1310,30 @@ const helpers = {
         overlayContainer.remove();
       }
 
+      const docWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, document.documentElement.clientWidth);
+      const docHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, document.documentElement.clientHeight);
+
       overlayContainer = document.createElement('div');
       overlayContainer.id = 'kapture-labels';
       overlayContainer.style.cssText = `
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: ${docWidth}px;
+        height: ${docHeight}px;
         pointer-events: none;
         z-index: 2147483646;
       `;
 
       uniqueElements.forEach(el => {
+        const x = el.bounds.x + window.scrollX;
+        const y = el.bounds.y + window.scrollY;
+
         const label = document.createElement('div');
         label.style.cssText = `
-          position: fixed;
-          left: ${el.bounds.x}px;
-          top: ${el.bounds.y}px;
+          position: absolute;
+          left: ${x}px;
+          top: ${y}px;
           background: rgba(255, 0, 0, 0.8);
           color: white;
           font-size: 10px;
@@ -1252,9 +1350,9 @@ const helpers = {
         // Also add a border highlight
         const highlight = document.createElement('div');
         highlight.style.cssText = `
-          position: fixed;
-          left: ${el.bounds.x}px;
-          top: ${el.bounds.y}px;
+          position: absolute;
+          left: ${x}px;
+          top: ${y}px;
           width: ${el.bounds.width}px;
           height: ${el.bounds.height}px;
           border: 2px solid rgba(255, 0, 0, 0.6);

@@ -194,6 +194,8 @@ Then ask Claude to interact with web pages:
 - `select` - Select dropdown options (HTML `<select>` only, uses first matching element)
 - `keypress` - Send keyboard events with modifier key support
 - `type` - Human-like character-by-character typing with delays between keystrokes
+- `paste` - Paste text into input/contenteditable (simulates clipboard events)
+- `clear` - Clear value from input/contenteditable
 - `focus` - Focus an element
 - `blur` - Remove focus from an element
 
@@ -308,7 +310,7 @@ Execute JavaScript with async/await support:
 
 ### MCP Resources
 
-- `kapture://tabs` - List all connected browser tabs
+- `kapture://tabs` - List all browser tabs (requires at least one connected tab to act as a bridge)
 - `kapture://tab/{tabId}` - Get detailed information about a specific tab
 - `kapture://tab/{tabId}/console` - Get console logs from a specific tab (with pagination support)
 - `kapture://tab/{tabId}/screenshot` - Capture screenshots of a tab or element
@@ -378,9 +380,14 @@ After making changes:
 - Reload extension in `chrome://extensions/`
 
 ### Command Timeouts
-- Default timeout is 5 seconds
-- Some commands accept custom timeout parameter
-- Check element selectors are correct
+- **Configurable Timeouts**: All interaction tools (`click`, `hover`, `focus`, `blur`, `fill`, `select`, `type`, `scroll`, `evaluate`, `screenshot`) now accept a `timeout` parameter in milliseconds.
+- **Defaults**:
+  - `click`: 8 seconds (8000ms) - extended to allow for animations and navigations.
+  - `type`: Dynamic based on text length + 5s buffer.
+  - `wait_for_element`: 5s default, fully configurable.
+  - Others: 5 seconds (5000ms).
+- **Navigation Handling**: The `click` tool gracefully handles cases where a click triggers immediate page unloading/navigation.
+- Check element selectors are correct if timeouts persist
 
 ### Performance Considerations
 **Important**: The `click` and `hover` tools may experience performance issues when the LLM Browser Bot DevTools panel is not the active/selected tab in Chrome DevTools. For optimal performance:

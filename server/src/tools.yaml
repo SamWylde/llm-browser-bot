@@ -63,6 +63,9 @@ tools:
     properties:
       tabId: *tabId
       <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 8000)
     <<: *oneOfSelectorOrXpath
 
   hover:
@@ -76,6 +79,9 @@ tools:
     properties:
       tabId: *tabId
       <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
   focus:
     description: >-
@@ -88,6 +94,9 @@ tools:
     properties:
       tabId: *tabId
       <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
   blur:
     description: >-
@@ -100,6 +109,9 @@ tools:
     properties:
       tabId: *tabId
       <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
   fill:
     description: >-
@@ -114,6 +126,40 @@ tools:
       value:
         type: string
         description: Value to fill in the input
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
+
+  paste:
+    description: >-
+      Paste text into an input field or contenteditable element at the current 
+      cursor position. Simulates a paste action using insertText command and 
+      clipboard events. Returns success status.
+    required: [tabId, value]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      value:
+        type: string
+        description: Text content to paste
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
+
+  clear:
+    description: >-
+      Clear the value of an input field or contenteditable element. 
+      Resets the value to empty string and triggers input/change events. 
+      Useful for resetting a field before typing.
+    required: [tabId]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
   select:
     description: >-
@@ -129,6 +175,9 @@ tools:
       value:
         type: string
         description: Value attribute of the option to select
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
   keypress:
     description: >-
@@ -193,6 +242,9 @@ tools:
         default: 0.85
         minimum: 0.1
         maximum: 1
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
 
   dom:
@@ -315,6 +367,9 @@ tools:
         description: Scroll behavior
         default: smooth
         enum: [auto, smooth]
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
   evaluate:
     description: >-
@@ -327,6 +382,9 @@ tools:
       code:
         type: string
         description: JavaScript code to execute (can use async/await)
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
 
   get_attribute:
     description: >-
@@ -409,6 +467,9 @@ tools:
         default: 50
         minimum: 0
         maximum: 1000
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default calculated based on text length)
 
   select_text:
     description: >-

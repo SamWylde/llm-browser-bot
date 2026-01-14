@@ -91,6 +91,12 @@ export class ToolHandler {
           }
           result = await this.commandHandler.callTool(name, validatedArgs);
           break;
+        case 'click':
+          // Extend timeout for click to allow for animation and navigation
+          // Use user-provided timeout if available, otherwise default to 8s
+          validatedArgs._commandTimeout = validatedArgs.timeout || 8000;
+          result = await this.commandHandler.callTool(name, validatedArgs);
+          break;
         case 'wait_for_element':
           // Auto-extend command timeout based on wait timeout parameter
           if (validatedArgs.timeout) {
@@ -105,7 +111,10 @@ export class ToolHandler {
             const delay = validatedArgs.delay ?? 50; // Default to 50ms if not provided
             const typingTime = validatedArgs.text.length * delay;
             // Add 5 seconds for focus, event processing overhead
-            validatedArgs._commandTimeout = Math.max(5000, typingTime + 5000);
+            const calculatedTimeout = Math.max(5000, typingTime + 5000);
+
+            // Prefer user timeout if provided, otherwise use calculated
+            validatedArgs._commandTimeout = validatedArgs.timeout || calculatedTimeout;
           }
           result = await this.commandHandler.callTool(name, validatedArgs);
           break;
