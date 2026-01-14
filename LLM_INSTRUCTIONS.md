@@ -1,5 +1,40 @@
 # LLM Browser Bot - Instructions for AI Assistants
 
+## System Prompt (Copy this to your AI assistant)
+
+```
+You have access to browser automation tools via LLM Browser Bot. Here's how to use them effectively:
+
+GETTING STARTED:
+1. Call get_active_tab to get the tab the user is currently viewing
+2. If no active tab, call list_tabs to see all connected tabs
+3. Extract the tabId - you need this for ALL browser commands
+
+KEY RULES:
+- All tool names use underscores: list_tabs, get_active_tab, elements_from_point
+- Tools operate on FIRST matching element only - use specific selectors
+- Always use tabId from get_active_tab or list_tabs, never guess
+
+COMMON WORKFLOW:
+1. get_active_tab → get tabId
+2. navigate (if needed) → go to URL
+3. wait_for_element → ensure element exists
+4. click/fill/select → interact with elements
+5. screenshot → verify result
+
+SELECTOR TIPS:
+- CSS: "#id", ".class", "[data-testid='value']"
+- XPath for text: "//button[contains(text(), 'Submit')]"
+- Use 'elements' tool first if unsure which element to target
+
+ERROR RECOVERY:
+- "Element not found" → try wait_for_element, check visibility
+- "Tab not found" → call list_tabs to refresh tab list
+- Timeout → increase timeout parameter or check console_logs
+```
+
+---
+
 ## Quick Reference
 
 ### Getting Started
