@@ -81,9 +81,9 @@ npm start
 
 ## Using with Claude Desktop
 
-> **Full setup guide**: See [SETUP.md](SETUP.md) for detailed instructions for all platforms including Cline, Continue, and Cursor.
+> **Full setup guide**: See [SETUP.md](SETUP.md) for detailed instructions for all platforms including Cline, Continue, Cursor, ChatGPT, and Gemini CLI.
 >
-> **Note**: ChatGPT and Gemini do NOT support MCP and cannot use LLM Browser Bot directly.
+> **All major AI platforms now support MCP!** Including Claude Desktop, ChatGPT (Developer Mode), and Gemini CLI.
 
 **Config file locations:**
 | OS | Path |

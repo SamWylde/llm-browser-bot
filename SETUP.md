@@ -10,10 +10,10 @@ Complete setup instructions for connecting LLM Browser Bot to various AI assista
 | Cline (VS Code) | Native | Easy |
 | Continue (VS Code) | Native | Easy |
 | Cursor | Native | Easy |
-| ChatGPT | Not Supported | N/A |
-| Gemini | Not Supported | N/A |
+| ChatGPT | Developer Mode | Medium |
+| Gemini CLI | Native | Easy |
 
-> **Note**: ChatGPT and Gemini do not currently support MCP (Model Context Protocol). They cannot connect to LLM Browser Bot directly. Only MCP-compatible clients are supported.
+> **All major AI platforms now support MCP!** OpenAI added full MCP support to ChatGPT Developer Mode in September 2025, and Google supports MCP across Gemini models and Gemini CLI.
 
 ---
 
@@ -197,16 +197,37 @@ The server auto-detects if already running - no conflicts!
 
 ---
 
-## ChatGPT / Gemini / Other Non-MCP Clients
+## ChatGPT (Developer Mode)
 
-**These are NOT supported** because they don't implement the Model Context Protocol (MCP).
+ChatGPT now supports MCP through Developer Mode (available to Pro, Plus, Business, Enterprise, and Education accounts).
 
-MCP is an open protocol developed by Anthropic for AI-tool communication. Only clients that implement MCP can connect to LLM Browser Bot.
+**Setup:**
+1. Start the LLM Browser Bot server manually:
+```bash
+npx llm-browser-bot
+```
 
-**Alternatives for non-MCP clients:**
-- Use the HTTP API directly at `http://localhost:61822/`
-- Build a custom integration using the WebSocket endpoint
-- Wait for those platforms to add MCP support
+2. In ChatGPT, enable Developer Mode
+3. Add a custom MCP connector pointing to: `ws://localhost:61822/mcp`
+
+For detailed instructions, see: [OpenAI Developer Mode Documentation](https://platform.openai.com/docs/guides/developer-mode)
+
+---
+
+## Gemini CLI
+
+Google's Gemini CLI has built-in MCP support.
+
+**Setup:**
+1. Install Gemini CLI: https://geminicli.com
+2. Start the LLM Browser Bot server:
+```bash
+npx llm-browser-bot
+```
+
+3. Configure Gemini CLI to use the MCP server at `ws://localhost:61822/mcp`
+
+For detailed instructions, see: [Gemini CLI MCP Documentation](https://geminicli.com/docs/tools/mcp-server/)
 
 ---
 
