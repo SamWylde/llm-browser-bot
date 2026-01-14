@@ -274,7 +274,7 @@ async function startServer() {
     console.log(`  Screenshot: http://localhost:${PORT}/tab/{tabId}/screenshot`);
     console.log(`  View image: http://localhost:${PORT}/tab/{tabId}/screenshot/view`);
     console.log(`  Elements: http://localhost:${PORT}/tab/{tabId}/elements`);
-    console.log(`  Point query: http://localhost:${PORT}/tab/{tabId}/elementsFromPoint`);
+    console.log(`  Point query: http://localhost:${PORT}/tab/{tabId}/elements_from_point`);
     console.log(`  DOM: http://localhost:${PORT}/tab/{tabId}/dom`);
     console.log('='.repeat(70));
   });

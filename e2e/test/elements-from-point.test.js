@@ -12,7 +12,7 @@ describe('ElementsFromPoint Tool Tests', function() {
 
   it('should get elements at specific coordinates', async function() {
     // Get elements at coordinates (100, 100)
-    const resultData = await framework.callToolAndParse('elementsFromPoint', {
+    const resultData = await framework.callToolAndParse('elements_from_point', {
       x: 100,
       y: 100
     });
@@ -45,7 +45,7 @@ describe('ElementsFromPoint Tool Tests', function() {
     const y = h1Bounds.y + (h1Bounds.height / 2);
 
     // Now get elements at those coordinates
-    const resultData = await framework.callToolAndParse('elementsFromPoint', {
+    const resultData = await framework.callToolAndParse('elements_from_point', {
       x: x,
       y: y
     });
@@ -67,7 +67,7 @@ describe('ElementsFromPoint Tool Tests', function() {
 
   it('should return empty array for coordinates outside viewport', async function() {
     // Get elements at coordinates way outside viewport
-    const resultData = await framework.callToolAndParse('elementsFromPoint', {
+    const resultData = await framework.callToolAndParse('elements_from_point', {
       x: -1000,
       y: -1000
     });
@@ -84,7 +84,7 @@ describe('ElementsFromPoint Tool Tests', function() {
     // We expect MCP validation errors, not our custom XY_REQUIRED errors
 
     try {
-      await framework.callTool('elementsFromPoint', {
+      await framework.callTool('elements_from_point', {
         y: 100
       });
       expect.fail('Should have thrown an error');
@@ -94,7 +94,7 @@ describe('ElementsFromPoint Tool Tests', function() {
     }
 
     try {
-      await framework.callTool('elementsFromPoint', {
+      await framework.callTool('elements_from_point', {
         x: 100
       });
       expect.fail('Should have thrown an error');
@@ -104,7 +104,7 @@ describe('ElementsFromPoint Tool Tests', function() {
     }
 
     try {
-      await framework.callTool('elementsFromPoint', {
+      await framework.callTool('elements_from_point', {
       });
       expect.fail('Should have thrown an error');
     } catch (error) {
@@ -115,7 +115,7 @@ describe('ElementsFromPoint Tool Tests', function() {
 
   it('should handle decimal coordinates', async function() {
     // Get elements at decimal coordinates
-    const resultData = await framework.callToolAndParse('elementsFromPoint', {
+    const resultData = await framework.callToolAndParse('elements_from_point', {
       x: 100.5,
       y: 150.75
     });

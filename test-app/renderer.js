@@ -556,7 +556,7 @@ function createResourceCard(resource) {
   // Check if this is the console resource that supports parameters
   const isConsoleResource = resource.uri.includes('/console');
   const isScreenshotResource = resource.uri.includes('/screenshot');
-  const isElementsFromPointResource = resource.uri.includes('/elementsFromPoint');
+  const isElementsFromPointResource = resource.uri.includes('/elements_from_point');
   const isElementsResource = resource.uri.includes('/elements');
   const isDomResource = resource.uri.includes('/dom');
 
@@ -642,7 +642,7 @@ function createResourceCard(resource) {
       </div>
     `;
   } else if (isElementsFromPointResource) {
-    // Add parameter inputs for elementsFromPoint resource
+    // Add parameter inputs for elements_from_point resource
     paramsHtml = `
       <div class="tool-params">
         <div class="param-group">
@@ -1045,7 +1045,7 @@ async function queryResource(resourceUri, button) {
       if (qualityInput && qualityInput.value) {
         params.append('quality', qualityInput.value);
       }
-    } else if (resourceUri.includes('/elementsFromPoint')) {
+    } else if (resourceUri.includes('/elements_from_point')) {
       const xInput = document.getElementById(`${resourceUri}-x`);
       const yInput = document.getElementById(`${resourceUri}-y`);
 

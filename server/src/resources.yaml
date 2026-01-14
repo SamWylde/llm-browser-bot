@@ -2,7 +2,7 @@
 baseResources:
   tabs:
     name: Connected Browser Tabs
-    description: List of all browser tabs connected to the Kapture server
+    description: List of all browser tabs connected to the LLM Browser Bot server
 
 # Dynamic resources created for each connected tab
 # {tabId} and {tabTitle} will be replaced with actual values
@@ -19,7 +19,7 @@ dynamicTabResources:
     name: "Screenshot: {tabTitle}"
     description: "Take a screenshot of browser tab {tabId}"
   
-  "{tabId}/elementsFromPoint":
+  "{tabId}/elements_from_point":
     name: "Elements at Point: {tabTitle}"
     description: "Get information about elements at a coordinate in browser tab {tabId}"
   
