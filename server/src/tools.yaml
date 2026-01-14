@@ -63,6 +63,9 @@ tools:
     properties:
       tabId: *tabId
       <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 30000)
     <<: *oneOfSelectorOrXpath
 
   hover:
