@@ -1218,24 +1218,30 @@ const helpers = {
         overlayContainer.remove();
       }
 
+      const docWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, document.documentElement.clientWidth);
+      const docHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, document.documentElement.clientHeight);
+
       overlayContainer = document.createElement('div');
       overlayContainer.id = 'kapture-labels';
       overlayContainer.style.cssText = `
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: ${docWidth}px;
+        height: ${docHeight}px;
         pointer-events: none;
         z-index: 2147483646;
       `;
 
       uniqueElements.forEach(el => {
+        const x = el.bounds.x + window.scrollX;
+        const y = el.bounds.y + window.scrollY;
+
         const label = document.createElement('div');
         label.style.cssText = `
-          position: fixed;
-          left: ${el.bounds.x}px;
-          top: ${el.bounds.y}px;
+          position: absolute;
+          left: ${x}px;
+          top: ${y}px;
           background: rgba(255, 0, 0, 0.8);
           color: white;
           font-size: 10px;
@@ -1252,9 +1258,9 @@ const helpers = {
         // Also add a border highlight
         const highlight = document.createElement('div');
         highlight.style.cssText = `
-          position: fixed;
-          left: ${el.bounds.x}px;
-          top: ${el.bounds.y}px;
+          position: absolute;
+          left: ${x}px;
+          top: ${y}px;
           width: ${el.bounds.width}px;
           height: ${el.bounds.height}px;
           border: 2px solid rgba(255, 0, 0, 0.6);
