@@ -81,6 +81,17 @@ npm start
 
 ## Using with Claude Desktop
 
+> **Full setup guide**: See [SETUP.md](SETUP.md) for detailed instructions for all platforms including Cline, Continue, Cursor, ChatGPT, and Gemini CLI.
+>
+> **All major AI platforms now support MCP!** Including Claude Desktop, ChatGPT (Developer Mode), and Gemini CLI.
+
+**Config file locations:**
+| OS | Path |
+|----|------|
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
+
 Add to your Claude Desktop config:
 
 ### Option 1: Using the bridge command (Recommended)

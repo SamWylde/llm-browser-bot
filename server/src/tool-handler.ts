@@ -83,6 +83,17 @@ export class ToolHandler {
           }
           result = formatTabDetail(tab);
           break;
+        case 'get_active_tab':
+          const activeTab = this.tabRegistry.getActiveTab();
+          if (activeTab) {
+            result = formatTabDetail(activeTab);
+          } else {
+            result = {
+              tab: null,
+              hint: 'No active tab found. The currently focused browser tab may not be connected to the server.'
+            };
+          }
+          break;
         case 'keypress':
           // Automatically adjust timeout based on delay
           if (validatedArgs.delay && !validatedArgs.timeout) {
