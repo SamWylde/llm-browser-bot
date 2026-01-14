@@ -529,6 +529,98 @@ const helpers = {
 
     return respondWith({ filled: true }, selector, xpath);
   },
+
+  paste: ({ selector, xpath, value }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+
+    let element;
+    try {
+      element = findAllElements(selector, xpath)[0];
+    } catch (e) {
+      const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+      return respondWithError(errorCode, e.message, selector, xpath);
+    }
+
+    if (!element) return elementNotFound(selector, xpath);
+
+    element.focus();
+
+    // Try execCommand 'insertText' first as it simulates user input best
+    let success = false;
+    try {
+      success = document.execCommand('insertText', false, value);
+    } catch (e) {
+      // Fallback
+    }
+
+    if (!success) {
+      // Fallback: Dispatch paste event and manual insertion
+      const pasteEvent = new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new DataTransfer()
+      });
+      pasteEvent.clipboardData.setData('text/plain', value);
+
+      if (element.dispatchEvent(pasteEvent)) {
+        // If event wasn't cancelled, manually insert
+        if (element.value !== undefined) {
+          const start = element.selectionStart || element.value.length;
+          const end = element.selectionEnd || element.value.length;
+          const text = element.value;
+          element.value = text.slice(0, start) + value + text.slice(end);
+          // Restore cursor
+          element.selectionStart = element.selectionEnd = start + value.length;
+        } else if (element.isContentEditable) {
+          // Simple append for contentEditable fallback
+          element.textContent += value;
+        }
+
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        success = true;
+      }
+    }
+
+    return respondWith({ pasted: success }, selector, xpath);
+  },
+
+  clear: ({ selector, xpath }) => {
+    if (!selector && !xpath) return requireSelectorOrXpath();
+
+    let element;
+    try {
+      element = findAllElements(selector, xpath)[0];
+    } catch (e) {
+      const errorCode = selector ? 'INVALID_SELECTOR' : 'INVALID_XPATH';
+      return respondWithError(errorCode, e.message, selector, xpath);
+    }
+
+    if (!element) return elementNotFound(selector, xpath);
+
+    const inputTypes = ['input', 'textarea'];
+    if (!inputTypes.includes(element.tagName.toLowerCase()) && !element.isContentEditable) {
+      return respondWithError('INVALID_ELEMENT', 'Element is not clearable: ' + element.tagName, selector, xpath);
+    }
+
+    element.focus();
+
+    // Clear value
+    if (element.value !== undefined) {
+      element.value = '';
+    } else if (element.isContentEditable) {
+      element.textContent = '';
+    }
+
+    // Trigger events
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Blur
+    element.blur();
+
+    return respondWith({ cleared: true }, selector, xpath);
+  },
   select: ({ selector, xpath, value }) => {
     if (!selector && !xpath) return requireSelectorOrXpath();
 

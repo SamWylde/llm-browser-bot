@@ -130,6 +130,37 @@ tools:
         type: number
         description: Command timeout in milliseconds (default 5000)
 
+  paste:
+    description: >-
+      Paste text into an input field or contenteditable element at the current 
+      cursor position. Simulates a paste action using insertText command and 
+      clipboard events. Returns success status.
+    required: [tabId, value]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      value:
+        type: string
+        description: Text content to paste
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
+
+  clear:
+    description: >-
+      Clear the value of an input field or contenteditable element. 
+      Resets the value to empty string and triggers input/change events. 
+      Useful for resetting a field before typing.
+    required: [tabId]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 5000)
+
   select:
     description: >-
       Select an option from an HTML <select> dropdown element using CSS 
