@@ -127,6 +127,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     if (request.type === 'contentScriptReady') {
       console.log(`Content script ready in tab ${sender.tab.id}`);
 
+      // Auto-connect if the opener tab is already connected
+      if (sender.tab.openerTabId) {
+        const openerTabState = tabManager.getTab(sender.tab.openerTabId);
+        if (openerTabState && openerTabState.getConnectionState().connected) {
+          console.log(`Auto-connecting tab ${sender.tab.id} because opener ${sender.tab.openerTabId} is connected`);
+          await tabManager.connect(sender.tab.id);
+        }
+      }
+
       // Send current connection state to the newly ready content script
       const tabState = tabManager.getTab(sender.tab.id);
       if (tabState) {
@@ -203,6 +212,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       const tabState = tabManager.getTab(request.tabId);
       sendResponse(tabState ? tabState.getConnectionState() : { connected: false, status: 'disconnected' });
       return false;
+    }
+
+    if (request.type === 'getAllTabs') {
+      try {
+        const tabs = await chrome.tabs.query({});
+        sendResponse(tabs);
+      } catch (e) {
+        sendResponse({ error: e.message });
+      }
+      return true; // Keep message channel open for async
     }
   }
 });
