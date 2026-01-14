@@ -91,6 +91,11 @@ export class ToolHandler {
           }
           result = await this.commandHandler.callTool(name, validatedArgs);
           break;
+        case 'click':
+          // Extend timeout for click to allow for animation and navigation
+          validatedArgs._commandTimeout = 30000;
+          result = await this.commandHandler.callTool(name, validatedArgs);
+          break;
         case 'wait_for_element':
           // Auto-extend command timeout based on wait timeout parameter
           if (validatedArgs.timeout) {

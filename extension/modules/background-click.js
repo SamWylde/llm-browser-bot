@@ -1,7 +1,7 @@
 // Import helper functions from background-commands
 import { getFromContentScript, respondWith, respondWithError, attachDebugger, getElement } from './background-commands.js';
 
-export async function click({tabId, mousePosition}, { selector, xpath }) {
+export async function click({ tabId, mousePosition }, { selector, xpath }) {
   return await hover({ tabId, mousePosition }, { selector, xpath }, true);
 }
 
@@ -78,9 +78,9 @@ export async function hover(tab, { selector, xpath }, click = false) {
 
           // Check if cursor is actually over the element
           const isOverElement = finalPosition.x >= bounds.x &&
-                               finalPosition.x <= bounds.x + bounds.width &&
-                               finalPosition.y >= bounds.y &&
-                               finalPosition.y <= bounds.y + bounds.height;
+            finalPosition.x <= bounds.x + bounds.width &&
+            finalPosition.y >= bounds.y &&
+            finalPosition.y <= bounds.y + bounds.height;
 
           if (!isOverElement) {
             // Calculate new target center and animate to it
@@ -103,8 +103,18 @@ export async function hover(tab, { selector, xpath }, click = false) {
       await getFromContentScript(tabId, '_moveMouseSVG', { x: actualTargetX, y: actualTargetY });
 
       if (click) {
-        await dispatchMouseEvent({type: 'mousePressed', x: actualTargetX, y: actualTargetY, button: 'left', clickCount: 1});
-        await dispatchMouseEvent({type: 'mouseReleased', x: actualTargetX, y: actualTargetY, button: 'left', clickCount: 1});
+        try {
+          await dispatchMouseEvent({ type: 'mousePressed', x: actualTargetX, y: actualTargetY, button: 'left', clickCount: 1 });
+          await dispatchMouseEvent({ type: 'mouseReleased', x: actualTargetX, y: actualTargetY, button: 'left', clickCount: 1 });
+        } catch (e) {
+          // If the click triggers a navigation, the debugger might detach or return an error.
+          // We consider this a success since the click was likely processed.
+          if (e.message.includes('dtver') || e.message.includes('Protocol error') || e.message.includes('closed')) {
+            console.log('Click triggered navigation or error, assuming success:', e.message);
+          } else {
+            throw e;
+          }
+        }
       }
     });
 
