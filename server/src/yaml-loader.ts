@@ -206,8 +206,8 @@ for (const tool of toolsConfig.tools) {
 
 // Export individual tools
 export const navigateTool = convertedTools.navigateTool;
-export const goBackTool = convertedTools.backTool;
-export const goForwardTool = convertedTools.forwardTool;
+export const backTool = convertedTools.backTool;
+export const forwardTool = convertedTools.forwardTool;
 export const clickTool = convertedTools.clickTool;
 export const hoverTool = convertedTools.hoverTool;
 export const fillTool = convertedTools.fillTool;
@@ -215,7 +215,7 @@ export const selectTool = convertedTools.selectTool;
 export const keypressTool = convertedTools.keypressTool;
 export const screenshotTool = convertedTools.screenshotTool;
 export const domTool = convertedTools.domTool;
-export const elementsFromPointTool = convertedTools.elementsFromPointTool;
+export const elements_from_pointTool = convertedTools.elements_from_pointTool;
 export const elementsTool = convertedTools.elementsTool;
 export const listTabsTool = convertedTools.list_tabsTool;
 export const tabDetailTool = convertedTools.tab_detailTool;

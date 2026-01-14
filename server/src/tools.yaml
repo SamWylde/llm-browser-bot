@@ -274,7 +274,7 @@ tools:
         default: "all"
         enum: ["true", "false", "all"]
 
-  elementsFromPoint:
+  elements_from_point:
     description: Get information about all elements at a specific coordinate in the viewport
     required: [tabId, x, y]
     properties:

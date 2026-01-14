@@ -118,7 +118,7 @@ export class MCPServerManager {
       this.dynamicTabResources.delete(tabId);
       this.dynamicTabResources.delete(`${tabId}/console`);
       this.dynamicTabResources.delete(`${tabId}/screenshot`);
-      this.dynamicTabResources.delete(`${tabId}/elementsFromPoint`);
+      this.dynamicTabResources.delete(`${tabId}/elements_from_point`);
       this.dynamicTabResources.delete(`${tabId}/dom`);
       this.dynamicTabResources.delete(`${tabId}/elements`);
 

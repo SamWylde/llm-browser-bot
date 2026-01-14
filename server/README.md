@@ -241,7 +241,7 @@ graph LR
 - `kapture://tab/{tabId}/console` - Get console logs
 - `kapture://tab/{tabId}/screenshot` - Capture screenshots
 - `kapture://tab/{tabId}/dom` - Get DOM HTML
-- `kapture://tab/{tabId}/elementsFromPoint` - Get elements at coordinates
+- `kapture://tab/{tabId}/elements_from_point` - Get elements at coordinates
 - `kapture://tab/{tabId}/elements?selector={selector}&visible={true|false|all}` - Query all elements matching a CSS selector or XPath with optional visibility filtering
 
 ## Documentation

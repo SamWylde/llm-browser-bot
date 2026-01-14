@@ -423,7 +423,7 @@ const helpers = {
 
     return respondWith({ html: element.outerHTML }, selector, xpath);
   },
-  elementsFromPoint: ({ x, y }) => {
+  elements_from_point: ({ x, y }) => {
     if (typeof x !== 'number' || typeof y !== 'number') {
       return respondWithError('XY_REQUIRED', 'Both x and y coordinates are required');
     }
