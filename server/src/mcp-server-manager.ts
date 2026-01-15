@@ -722,12 +722,40 @@ export class MCPServerManager {
       this.connections.delete(connectionId);
     };
 
-    // Parse body for POST requests
-    if (req.method === 'POST') {
-      const body = await this.parseRequestBody(req);
-      await transport.handleRequest(req, res, body);
-    } else {
-      await transport.handleRequest(req, res);
+    // Intercept response to debug 400 errors
+    const originalWriteHead = res.writeHead;
+    const originalEnd = res.end;
+
+    res.writeHead = function (statusCode: number, ...args: any[]) {
+      if (statusCode >= 400) {
+        logger.error(`Debug: Caught ${statusCode} response for ${connectionId}`);
+      }
+      return originalWriteHead.apply(res, [statusCode, ...args]);
+    };
+
+    res.end = function (chunk: any, ...args: any[]) {
+      if (chunk && chunk.toString().includes('error')) {
+        logger.error(`Debug: Response body for ${connectionId}: ${chunk.toString()}`);
+      }
+      return originalEnd.apply(res, [chunk, ...args]);
+    };
+
+    try {
+      if (req.method === 'POST') {
+        const body = await this.parseRequestBody(req);
+        await transport.handleRequest(req, res, body);
+      } else {
+        await transport.handleRequest(req, res);
+      }
+    } catch (err: any) {
+      logger.error('Error in transport.handleRequest:', err);
+      // Restore original methods just in case
+      res.writeHead = originalWriteHead;
+      res.end = originalEnd;
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
     }
   }
 
