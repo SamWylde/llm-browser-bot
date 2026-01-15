@@ -175,6 +175,33 @@ if (-not $SkipUpdate) {
         
         Write-Host "[Update] Complete. Updated $updatedCount files. Skipped $skippedCount unchanged files."
 
+        # Check if extension files were updated
+        $extensionUpdated = $files | Where-Object { $_.FullName -like "*\extension\*" } | Where-Object {
+            $relativePath = $_.FullName.Substring($sourceDir.Length + 1)
+            $destPath = Join-Path "." $relativePath
+            if (Test-Path $destPath) {
+                $localHash = (Get-FileHash -Path $destPath -Algorithm MD5 -ErrorAction SilentlyContinue).Hash
+                $newHash = (Get-FileHash -Path $_.FullName -Algorithm MD5 -ErrorAction SilentlyContinue).Hash
+                return $localHash -ne $newHash
+            }
+            return $true
+        }
+
+        if ($extensionUpdated) {
+            Write-Host ""
+            Write-Host "============================================" -ForegroundColor Yellow
+            Write-Host "[IMPORTANT] Chrome Extension was updated!" -ForegroundColor Yellow  
+            Write-Host "============================================" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "  You MUST reload the extension:" -ForegroundColor White
+            Write-Host "  1. Go to chrome://extensions/" -ForegroundColor Cyan
+            Write-Host "  2. Click the REFRESH button on LLM Browser Bot" -ForegroundColor Cyan
+            Write-Host "  3. Close and reopen browser tabs" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "============================================" -ForegroundColor Yellow
+            Write-Host ""
+        }
+
         # Cleanup Backup if successful
         # Remove-Item $backupDir -Recurse -Force
         Write-Host "[Update] Backup kept at $backupDir"
