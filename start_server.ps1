@@ -244,8 +244,88 @@ if (-not $SkipUpdate) {
 }
 
 # ==============================================================================
-# Helper Function: Launch Automation Browser
+# Helper Function: Clone Chrome Profile for Automation
 # ==============================================================================
+function Clone-ChromeProfile {
+    $localAppData = $env:LOCALAPPDATA
+    $chromeUserData = "$localAppData\Google\Chrome\User Data"
+    $defaultProfile = "$chromeUserData\Default"
+    
+    # Target profile for automation
+    $automationProfileDir = "$localAppData\LLM-Browser-Bot-Profile"
+    $automationDefaultDir = "$automationProfileDir\Default"
+
+    # Files to copy (Cookies, Login Data, Local Storage)
+    $filesToCopy = @("Cookies", "Login Data", "Web Data", "Local State")
+    $dirsToCopy = @("Local Storage", "Sessions")
+
+    if (-not (Test-Path $defaultProfile)) {
+        Write-Warning "Default Chrome profile not found at $defaultProfile"
+        return $null
+    }
+
+    # check if chrome is running
+    $chromeProcess = Get-Process chrome -ErrorAction SilentlyContinue
+    if ($chromeProcess) {
+        Write-Host ""
+        Write-Host "============================================" -ForegroundColor Yellow
+        Write-Host "Action Required: Close Chrome" -ForegroundColor Yellow
+        Write-Host "============================================" -ForegroundColor Yellow
+        Write-Host "To safely copy your cookies and logins for automation," -ForegroundColor White
+        Write-Host "Chrome must be closed briefly." -ForegroundColor White
+        Write-Host ""
+        Write-Host "Please close all Chrome windows then press Enter..." -ForegroundColor Cyan
+        Read-Host
+        
+        # Check again and kill if user agrees? No, better to just warn.
+        $chromeProcess = Get-Process chrome -ErrorAction SilentlyContinue
+        if ($chromeProcess) {
+            Write-Warning "Chrome is still running. Files might be locked."
+            Write-Host "Attempting copy anyway (might miss some data)..." -ForegroundColor Red
+        }
+    }
+
+    Write-Host "Cloning Chrome profile to isolated automation environment..." -ForegroundColor Gray
+    
+    # storage needs to be created
+    if (-not (Test-Path $automationDefaultDir)) {
+        New-Item -ItemType Directory -Force -Path $automationDefaultDir | Out-Null
+    }
+
+    # Copy key files
+    # Local State lives in User Data root
+    if (Test-Path "$chromeUserData\Local State") {
+        Copy-Item "$chromeUserData\Local State" "$automationProfileDir\Local State" -Force -ErrorAction SilentlyContinue
+    }
+
+    foreach ($file in $filesToCopy) {
+        $src = "$defaultProfile\$file"
+        $dest = "$automationDefaultDir\$file"
+        if (Test-Path $src) {
+            try {
+                Copy-Item $src $dest -Force -ErrorAction Stop
+                Write-Host "  Copied $file" -ForegroundColor Gray
+            } catch {
+                Write-Warning "  Could not copy $file (Locked by Chrome?)"
+            }
+        }
+    }
+
+    foreach ($dir in $dirsToCopy) {
+        $src = "$defaultProfile\$dir"
+        $dest = "$automationDefaultDir\$dir"
+        if (Test-Path $src) {
+             try {
+                Copy-Item $src $dest -Recurse -Force -ErrorAction SilentlyContinue
+                Write-Host "  Copied $dir" -ForegroundColor Gray
+            } catch {
+                Write-Warning "  Could not copy $dir"
+            }
+        }
+    }
+
+    return $automationProfileDir
+}
 
 function Launch-AutomationBrowser {
     param(
@@ -276,56 +356,42 @@ function Launch-AutomationBrowser {
 
     if (-not $chromePath) {
         Write-Warning "Chrome not found in standard locations."
-        Write-Host "Please ensure Chrome is installed and open a browser tab manually." -ForegroundColor Yellow
         return $false
     }
 
     Write-Host "  Found Chrome: $chromePath" -ForegroundColor Gray
 
-    # Resolve extension path
-    $extensionFullPath = Resolve-Path $ExtensionPath -ErrorAction SilentlyContinue
-    if (-not $extensionFullPath) {
-        Write-Warning "Extension path not found: $ExtensionPath"
+    # Clone Profile Data
+    $profileDir = Clone-ChromeProfile
+
+    if (-not $profileDir) {
+        Write-Warning "Failed to prepare automation profile."
         return $false
     }
 
-    Write-Host "  Extension: $extensionFullPath" -ForegroundColor Gray
+    # Resolve extension path
+    $extensionFullPath = Resolve-Path $ExtensionPath -ErrorAction SilentlyContinue
+    
     Write-Host ""
     Write-Host "[IMPORTANT]" -ForegroundColor Yellow
-    Write-Host "  A Chrome window will open for AUTOMATION." -ForegroundColor White
-    Write-Host "  This uses your existing Chrome profile (cookies/logins shared)." -ForegroundColor Gray
-    Write-Host "  You can continue using ChatGPT in your main browser." -ForegroundColor White
+    Write-Host "  Launching isolated automation browser." -ForegroundColor White
+    Write-Host "  Extension should auto-load." -ForegroundColor White
+    Write-Host "  You can reopen your main Chrome now." -ForegroundColor Green
     Write-Host ""
 
-    # Launch Chrome with extension
-    # --new-window: Opens in new window
-    # --load-extension: Loads the unpacked extension
-    # Note: Chrome won't load extensions if another instance with same profile is running
-    # So we use --new-window to at least open a new window
-    
-    $chromeArgs = @(
-        "--new-window",
+    # Launch Chrome with isolated profile
+    $args = @(
+        "--user-data-dir=`"$profileDir`"",
         "--load-extension=`"$extensionFullPath`"",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--restore-last-session", # keeps cookies better sometimes
         $StartUrl
     )
 
-    try {
-        Start-Process -FilePath $chromePath -ArgumentList $chromeArgs
-        Write-Host "  Chrome automation window launched!" -ForegroundColor Green
-        Write-Host ""
-        Write-Host "  IN THE NEW CHROME WINDOW:" -ForegroundColor Yellow
-        Write-Host "  1. Click the LLM Browser Bot extension icon" -ForegroundColor White
-        Write-Host "  2. Toggle it to CONNECTED" -ForegroundColor White
-        Write-Host "  3. ChatGPT can now control this browser!" -ForegroundColor White
-        Write-Host ""
-        return $true
-    } catch {
-        Write-Warning "Failed to launch Chrome: $_"
-        return $false
-    }
+    Start-Process -FilePath $chromePath -ArgumentList $args
+    return $true
 }
-
-
 # ==============================================================================
 # 2. Install, Build, and Start
 # ==============================================================================
