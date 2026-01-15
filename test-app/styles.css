@@ -41,6 +41,7 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .status-indicator {
@@ -56,6 +57,33 @@ body {
 
 #status-text {
   font-size: 0.9rem;
+}
+
+.server-health {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #dfe6e9;
+}
+
+.health-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f1c40f;
+}
+
+.health-indicator.ok {
+  background: #2ecc71;
+}
+
+.health-indicator.error {
+  background: #e74c3c;
+}
+
+.health-text {
+  color: #ecf0f1;
 }
 
 /* Browser Container */
@@ -94,6 +122,26 @@ body {
   margin: 0;
 }
 
+.sidebar-section-meta {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.sidebar-search {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-search:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+}
+
 .sidebar-divider {
   height: 1px;
   background: #e0e0e0;
@@ -114,6 +162,10 @@ body {
 .btn-icon:hover {
   background: #f0f0f0;
   color: #3498db;
+}
+
+.btn-icon.active {
+  color: #f1c40f;
 }
 
 .btn-icon:disabled {
@@ -172,6 +224,26 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.sidebar-item .sidebar-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-toggle {
+  border: none;
+  background: transparent;
+  color: #c0c0c0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.25rem;
+}
+
+.favorite-toggle.active {
+  color: #f1c40f;
 }
 
 .sidebar-item:hover {
@@ -354,6 +426,24 @@ body {
   padding: 0.75rem 1rem;
   background: #f8f8f8;
   border-bottom: 1px solid #ddd;
+}
+
+.nav-tab-indicator {
+  padding: 0.35rem 0.6rem;
+  border-radius: 16px;
+  background: #eef2f7;
+  color: #4a5568;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-tab-indicator.active {
+  background: #e8f4f8;
+  color: #2c5282;
+  font-weight: 600;
 }
 
 .nav-btn {

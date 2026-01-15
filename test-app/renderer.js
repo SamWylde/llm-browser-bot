@@ -4,6 +4,7 @@ let currentTools = [];
 let currentResources = [];
 let currentTabs = [];
 let selectedTabId = null;
+let serverPort = 61822;
 
 // DOM elements
 const statusEl = document.getElementById('status');
@@ -17,6 +18,15 @@ const consoleEl = document.getElementById('console-output');
 const tabInfoEl = document.getElementById('tab-info-content');
 const consoleDividerEl = document.getElementById('console-divider');
 const consoleContainerEl = document.getElementById('console');
+const toolsSearchEl = document.getElementById('tools-search');
+const resourcesSearchEl = document.getElementById('resources-search');
+const toolsFavoritesToggleEl = document.getElementById('tools-favorites-toggle');
+const resourcesFavoritesToggleEl = document.getElementById('resources-favorites-toggle');
+const toolsCountEl = document.getElementById('tools-count');
+const resourcesCountEl = document.getElementById('resources-count');
+const navTabIndicatorEl = document.getElementById('nav-tab-indicator');
+const healthIndicatorEl = document.getElementById('health-indicator');
+const healthTextEl = document.getElementById('health-text');
 
 // Tool forms state - store form data per tab
 const tabFormData = {};
@@ -24,11 +34,62 @@ const tabFormData = {};
 // Selected item state
 let selectedItem = null; // { type: 'tool'|'resource', name: string }
 
+let toolsSearchQuery = '';
+let resourcesSearchQuery = '';
+let showOnlyFavorites = {
+  tools: false,
+  resources: false
+};
+
+const favorites = {
+  tools: new Set(),
+  resources: new Set()
+};
+
+loadFavorites();
+
 // Utility function to escape HTML
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function loadFavorites() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('kapture-favorites') || '{}');
+    if (Array.isArray(stored.tools)) {
+      stored.tools.forEach(name => favorites.tools.add(name));
+    }
+    if (Array.isArray(stored.resources)) {
+      stored.resources.forEach(uri => favorites.resources.add(uri));
+    }
+  } catch (error) {
+    log(`Failed to load favorites: ${error.message}`, 'warn');
+  }
+}
+
+function saveFavorites() {
+  const payload = {
+    tools: Array.from(favorites.tools),
+    resources: Array.from(favorites.resources)
+  };
+  localStorage.setItem('kapture-favorites', JSON.stringify(payload));
+}
+
+function toggleFavorite(type, name) {
+  const set = favorites[type];
+  if (set.has(name)) {
+    set.delete(name);
+  } else {
+    set.add(name);
+  }
+  saveFavorites();
+}
+
+function updateFavoritesToggleUI() {
+  toolsFavoritesToggleEl.classList.toggle('active', showOnlyFavorites.tools);
+  resourcesFavoritesToggleEl.classList.toggle('active', showOnlyFavorites.resources);
 }
 
 // Logging
@@ -39,6 +100,30 @@ function log(message, type = 'info') {
   consoleEl.appendChild(entry);
   consoleEl.scrollTop = consoleEl.scrollHeight;
 }
+
+toolsSearchEl.addEventListener('input', (event) => {
+  toolsSearchQuery = event.target.value.toLowerCase();
+  displayToolsList();
+});
+
+resourcesSearchEl.addEventListener('input', (event) => {
+  resourcesSearchQuery = event.target.value.toLowerCase();
+  displayResourcesList();
+});
+
+toolsFavoritesToggleEl.addEventListener('click', () => {
+  showOnlyFavorites.tools = !showOnlyFavorites.tools;
+  updateFavoritesToggleUI();
+  displayToolsList();
+});
+
+resourcesFavoritesToggleEl.addEventListener('click', () => {
+  showOnlyFavorites.resources = !showOnlyFavorites.resources;
+  updateFavoritesToggleUI();
+  displayResourcesList();
+});
+
+updateFavoritesToggleUI();
 
 // Server management
 async function connectToServer() {
@@ -54,11 +139,14 @@ async function connectToServer() {
 
       // Get the port number
       const port = await window.electronAPI.getPort();
+      serverPort = port;
       statusTextEl.textContent = `Connected to MCP (ws://localhost:${port}/mcp)`;
       refreshTabsBtn.disabled = false;
 
       log(`Connected to MCP WebSocket server at ws://localhost:${port}/mcp`, 'info');
       log(`Server capabilities: ${JSON.stringify(result.capabilities)}`, 'info');
+
+      await fetchServerHealth();
 
       // Auto-discover tools and resources
       await discoverTools();
@@ -78,6 +166,43 @@ async function connectToServer() {
 
     // The WebSocket connection will handle reconnection automatically
   }
+}
+
+async function fetchServerHealth() {
+  const endpoints = [
+    `http://localhost:${serverPort}/health`,
+    `http://localhost:${serverPort}/status`
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Status ${response.status}`);
+      }
+      const data = await response.json();
+      const connections = data.connections?.total ?? 0;
+      const tabs = data.tabs?.total ?? 0;
+      const uptimeMs = data.uptimeMs ?? 0;
+      const uptimeMinutes = Math.floor(uptimeMs / 60000);
+
+      healthIndicatorEl.classList.remove('error');
+      healthIndicatorEl.classList.add('ok');
+      healthTextEl.textContent = `Server health: OK • ${connections} connection${connections === 1 ? '' : 's'} • ${tabs} tab${tabs === 1 ? '' : 's'} • ${uptimeMinutes}m uptime`;
+      return;
+    } catch (error) {
+      continue;
+    }
+  }
+
+  healthIndicatorEl.classList.remove('ok');
+  healthIndicatorEl.classList.add('error');
+  healthTextEl.textContent = 'Server health: unreachable';
+}
+
+function startHealthPolling() {
+  fetchServerHealth();
+  setInterval(fetchServerHealth, 10000);
 }
 
 // Tool discovery
@@ -198,6 +323,7 @@ function selectTab(tabId) {
   selectedTabId = tabId;
   displayTabs();
   updateTabInfo();
+  updateNavTabIndicator();
 
   // Clear selected item when tab changes
   selectedItem = null;
@@ -227,6 +353,7 @@ function updateTabInfo() {
 
   if (!tab) {
     tabInfoEl.innerHTML = '<span class="info-placeholder">No tab selected</span>';
+    updateNavTabIndicator();
     return;
   }
 
@@ -265,16 +392,64 @@ function updateTabInfo() {
   tabInfoEl.innerHTML = infoHTML;
 }
 
+function updateNavTabIndicator() {
+  const tab = currentTabs.find(t => t.tabId === selectedTabId);
+  if (!tab) {
+    navTabIndicatorEl.textContent = 'No tab selected';
+    navTabIndicatorEl.classList.remove('active');
+    return;
+  }
+
+  const title = tab.title || 'Untitled';
+  navTabIndicatorEl.textContent = `Active: ${title} (${tab.tabId})`;
+  navTabIndicatorEl.classList.add('active');
+}
+
 // Display tools in sidebar
 function displayToolsList() {
   toolsListEl.innerHTML = '';
 
-  if (currentTools.length === 0) {
-    toolsListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">No tools available</div>';
+  if (!selectedTabId) {
+    toolsListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">Select a tab to view tools</div>';
+    toolsCountEl.textContent = '';
     return;
   }
 
-  currentTools.forEach(tool => {
+  if (currentTools.length === 0) {
+    toolsListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">No tools available</div>';
+    toolsCountEl.textContent = '0';
+    return;
+  }
+
+  const filteredTools = currentTools
+    .map(tool => ({
+      tool,
+      favorite: favorites.tools.has(tool.name)
+    }))
+    .filter(({ tool, favorite }) => {
+      if (showOnlyFavorites.tools && !favorite) {
+        return false;
+      }
+      if (toolsSearchQuery) {
+        return tool.name.toLowerCase().includes(toolsSearchQuery);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.favorite !== b.favorite) {
+        return a.favorite ? -1 : 1;
+      }
+      return a.tool.name.localeCompare(b.tool.name);
+    });
+
+  toolsCountEl.textContent = `${filteredTools.length}/${currentTools.length}`;
+
+  if (filteredTools.length === 0) {
+    toolsListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">No tools match your filters</div>';
+    return;
+  }
+
+  filteredTools.forEach(({ tool, favorite }) => {
     const toolEl = document.createElement('button');
     toolEl.className = 'sidebar-item';
     if (selectedItem && selectedItem.type === 'tool' && selectedItem.name === tool.name) {
@@ -297,11 +472,23 @@ function displayToolsList() {
 
     toolEl.innerHTML = `
       <span class="sidebar-item-icon">${icon}</span>
-      <span>${tool.name}</span>
+      <span class="sidebar-item-label">${tool.name}</span>
     `;
+
+    const favoriteBtn = document.createElement('button');
+    favoriteBtn.className = `favorite-toggle ${favorite ? 'active' : ''}`;
+    favoriteBtn.type = 'button';
+    favoriteBtn.title = favorite ? 'Remove favorite' : 'Add favorite';
+    favoriteBtn.textContent = '★';
+    favoriteBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleFavorite('tools', tool.name);
+      displayToolsList();
+    });
 
     toolEl.addEventListener('click', () => selectSidebarItem('tool', tool.name));
     toolsListEl.appendChild(toolEl);
+    toolEl.appendChild(favoriteBtn);
   });
 }
 
@@ -309,12 +496,47 @@ function displayToolsList() {
 function displayResourcesList() {
   resourcesListEl.innerHTML = '';
 
-  if (currentResources.length === 0) {
-    resourcesListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">No resources available</div>';
+  if (!selectedTabId) {
+    resourcesListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">Select a tab to view resources</div>';
+    resourcesCountEl.textContent = '';
     return;
   }
 
-  currentResources.forEach(resource => {
+  if (currentResources.length === 0) {
+    resourcesListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">No resources available</div>';
+    resourcesCountEl.textContent = '0';
+    return;
+  }
+
+  const filteredResources = currentResources
+    .map(resource => ({
+      resource,
+      favorite: favorites.resources.has(resource.uri)
+    }))
+    .filter(({ resource, favorite }) => {
+      if (showOnlyFavorites.resources && !favorite) {
+        return false;
+      }
+      if (resourcesSearchQuery) {
+        return resource.uri.toLowerCase().includes(resourcesSearchQuery);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.favorite !== b.favorite) {
+        return a.favorite ? -1 : 1;
+      }
+      return a.resource.uri.localeCompare(b.resource.uri);
+    });
+
+  resourcesCountEl.textContent = `${filteredResources.length}/${currentResources.length}`;
+
+  if (filteredResources.length === 0) {
+    resourcesListEl.innerHTML = '<div class="empty-state" style="padding: 0.5rem; color: #999;">No resources match your filters</div>';
+    return;
+  }
+
+  filteredResources.forEach(({ resource, favorite }) => {
     const resourceEl = document.createElement('button');
     resourceEl.className = 'sidebar-item';
     if (selectedItem && selectedItem.type === 'resource' && selectedItem.name === resource.uri) {
@@ -329,11 +551,23 @@ function displayResourcesList() {
 
     resourceEl.innerHTML = `
       <span class="sidebar-item-icon">${icon}</span>
-      <span>${resource.uri}</span>
+      <span class="sidebar-item-label">${resource.uri}</span>
     `;
+
+    const favoriteBtn = document.createElement('button');
+    favoriteBtn.className = `favorite-toggle ${favorite ? 'active' : ''}`;
+    favoriteBtn.type = 'button';
+    favoriteBtn.title = favorite ? 'Remove favorite' : 'Add favorite';
+    favoriteBtn.textContent = '★';
+    favoriteBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleFavorite('resources', resource.uri);
+      displayResourcesList();
+    });
 
     resourceEl.addEventListener('click', () => selectSidebarItem('resource', resource.uri));
     resourcesListEl.appendChild(resourceEl);
+    resourceEl.appendChild(favoriteBtn);
   });
 }
 
@@ -1391,6 +1625,9 @@ log('LLM Browser Bot Test Client ready');
 
 // Setup navigation listeners
 setupNavigationListeners();
+
+// Start server health polling
+startHealthPolling();
 
 // Auto-connect on startup
 connectToServer();

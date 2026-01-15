@@ -13,6 +13,10 @@
       <div class="connection-status">
         <span class="status-indicator" id="status"></span>
         <span id="status-text">Connecting...</span>
+        <div class="server-health" id="server-health">
+          <span class="health-indicator" id="health-indicator"></span>
+          <span class="health-text" id="health-text">Server health: checking...</span>
+        </div>
       </div>
     </header>
 
@@ -41,6 +45,7 @@
                 <path fill="currentColor" d="M5 2l6 6-6 6V2z"/>
               </svg>
             </button>
+            <div class="nav-tab-indicator" id="nav-tab-indicator">No tab selected</div>
             <input type="text" class="nav-url-input" id="nav-url" placeholder="Enter URL...">
             <button class="nav-btn nav-refresh" id="nav-refresh" title="Navigate">
               <svg width="16" height="16" viewBox="0 0 16 16">
@@ -54,7 +59,14 @@
             <!-- Left Sidebar -->
             <div class="sidebar" id="sidebar">
               <div class="sidebar-section">
-                <h3 class="sidebar-section-header">Tools</h3>
+                <div class="sidebar-section-header">
+                  <div>
+                    <h3>Tools</h3>
+                    <span class="sidebar-section-meta" id="tools-count"></span>
+                  </div>
+                  <button class="btn-icon" id="tools-favorites-toggle" title="Show favorites only">★</button>
+                </div>
+                <input type="search" class="sidebar-search" id="tools-search" placeholder="Search tools">
                 <div class="sidebar-items" id="tools-list">
                   <!-- Dynamic tools will be inserted here -->
                 </div>
@@ -63,7 +75,14 @@
               <div class="sidebar-divider"></div>
 
               <div class="sidebar-section">
-                <h3 class="sidebar-section-header">Resources</h3>
+                <div class="sidebar-section-header">
+                  <div>
+                    <h3>Resources</h3>
+                    <span class="sidebar-section-meta" id="resources-count"></span>
+                  </div>
+                  <button class="btn-icon" id="resources-favorites-toggle" title="Show favorites only">★</button>
+                </div>
+                <input type="search" class="sidebar-search" id="resources-search" placeholder="Search resources">
                 <div class="sidebar-items" id="resources-list">
                   <!-- Dynamic resources will be inserted here -->
                 </div>
