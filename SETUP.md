@@ -201,14 +201,33 @@ The server auto-detects if already running - no conflicts!
 
 ChatGPT now supports MCP through Developer Mode (available to Pro, Plus, Business, Enterprise, and Education accounts).
 
+> **Important:** ChatGPT requires a **public HTTPS URL** - it cannot connect to `localhost` directly. You need to use a tunneling service like ngrok.
+
 **Setup:**
-1. Start the LLM Browser Bot server manually:
+
+1. Start the LLM Browser Bot server:
 ```bash
 npx llm-browser-bot
 ```
 
-2. In ChatGPT, enable Developer Mode
-3. Add a custom MCP connector pointing to: `ws://localhost:61822/mcp`
+2. Install and run ngrok to create a public tunnel:
+```bash
+# Install ngrok from https://ngrok.com/download
+ngrok http 61822
+```
+
+3. Copy the HTTPS URL from ngrok output (e.g., `https://abc123.ngrok.app`)
+
+4. In ChatGPT:
+   - Enable Developer Mode (Settings → Developer Mode)
+   - Add a new MCP connector
+   - Enter the URL: `https://YOUR-NGROK-URL.ngrok.app/mcp`
+
+**Example ngrok output:**
+```
+Forwarding  https://abc123.ngrok.app -> http://localhost:61822
+```
+Use: `https://abc123.ngrok.app/mcp` as your ChatGPT connector URL.
 
 For detailed instructions, see: [OpenAI Developer Mode Documentation](https://platform.openai.com/docs/guides/developer-mode)
 
