@@ -96,6 +96,8 @@ const httpServer = createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Session-Timeout, Last-Event-ID');
+  // CRITICAL: Expose Mcp-Session-Id to clients - without this, clients can't read the session ID and fail with "Server not initialized"
+  res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -211,9 +213,8 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  // Handle /mcp endpoint for Streamable HTTP / SSE
-  const url = new URL(req.url || '', `http://${req.headers.host}`);
-  if (url.pathname === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
+  // Handle /mcp endpoint for Streamable HTTP (ChatGPT, etc.)
+  if (req.url === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
     try {
       if (req.method === 'GET' || req.method === 'POST') {
         normalizeMcpAcceptHeader(req);
