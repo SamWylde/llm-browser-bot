@@ -1,36 +1,45 @@
+param(
+    [switch]$SkipUpdate
+)
+
 $ErrorActionPreference = "Stop"
 $repo = "SamWylde/llm-browser-bot"
 $branch = "master"
 $localVersionFile = ".last_commit_sha"
 $userAgent = "LLM-Browser-Bot-Updater"
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $scriptRoot
 
-Write-Host "[Update] Checking for updates..."
+if (-not $SkipUpdate) {
+    Write-Host "[Update] Checking for updates..."
+    Write-Host "[Update] This keeps the app (and this script) up to date automatically."
 
-$updatePerformed = $false
+    $updatePerformed = $false
+    $startupScriptUpdated = $false
 
-# Method 1: Try Git
-# We check for .git directory to ensure it's a git repo, and git command availability
-if ((Test-Path ".git") -and (Get-Command "git" -ErrorAction SilentlyContinue)) {
-    Write-Host "[Update] Git detected. Attempting git pull..."
-    try {
-        $gitOutput = git pull 2>&1
-        if ($LASTEXITCODE -eq 0) { 
-            Write-Host "[Update] Git update successful."
-            $updatePerformed = $true
-        } else {
-            Write-Warning "[Update] Git pull failed. Output: $gitOutput"
-            Write-Warning "[Update] Falling back to direct download..."
+    # Method 1: Try Git
+    # We check for .git directory to ensure it's a git repo, and git command availability
+    if ((Test-Path ".git") -and (Get-Command "git" -ErrorAction SilentlyContinue)) {
+        Write-Host "[Update] Git detected. Attempting git pull..."
+        try {
+            $gitOutput = git pull 2>&1
+            if ($LASTEXITCODE -eq 0) { 
+                Write-Host "[Update] Git update successful."
+                $updatePerformed = $true
+            } else {
+                Write-Warning "[Update] Git pull failed. Output: $gitOutput"
+                Write-Warning "[Update] Falling back to direct download..."
+            }
+        } catch {
+            Write-Warning "[Update] Git execution failed. Falling back to direct download."
         }
-    } catch {
-        Write-Warning "[Update] Git execution failed. Falling back to direct download."
+    } else {
+        Write-Host "[Update] Git not found or not a git repo. Using direct download mode."
     }
-} else {
-    Write-Host "[Update] Git not found or not a git repo. Using direct download mode."
-}
 
-# Method 2: Direct Download from GitHub
-if (-not $updatePerformed) {
-    try {
+    # Method 2: Direct Download from GitHub
+    if (-not $updatePerformed) {
+        try {
 
     # 1. Get latest commit SHA from GitHub API
     $apiUrl = "https://api.github.com/repos/$repo/commits/$branch"
@@ -153,7 +162,7 @@ if (-not $updatePerformed) {
                     # File might be locked (especially the running script)
                     Write-Warning "[Update] Could not update $relativePath (file may be in use)"
                     if ($relativePath -eq "start_server.ps1") {
-                        # Save as .new file for manual update
+                        # Save as .new file for automated relaunch
                         Copy-Item -Path $file.FullName -Destination "$destPath.new" -Force
                         $startupScriptUpdated = $true
                     }
@@ -170,22 +179,19 @@ if (-not $updatePerformed) {
         # Remove-Item $backupDir -Recurse -Force
         Write-Host "[Update] Backup kept at $backupDir"
 
-        # Check if startup script has a pending update
-        if (Test-Path "start_server.ps1.new") {
+        if ($startupScriptUpdated) {
             Write-Host ""
-            Write-Host "[Update] ================================================" -ForegroundColor Yellow
-            Write-Host "[Update] STARTUP SCRIPT UPDATE PENDING" -ForegroundColor Yellow
-            Write-Host "[Update] A new version of start_server.ps1 is available." -ForegroundColor Yellow
-            Write-Host "[Update] Please close this window and:" -ForegroundColor Yellow
-            Write-Host "[Update]   1. Delete 'start_server.ps1'" -ForegroundColor Yellow
-            Write-Host "[Update]   2. Rename 'start_server.ps1.new' to 'start_server.ps1'" -ForegroundColor Yellow
-            Write-Host "[Update]   3. Run update_and_start.bat again" -ForegroundColor Yellow
-            Write-Host "[Update] ================================================" -ForegroundColor Yellow
-            Write-Host ""
-            Read-Host "Press Enter to continue with current version..."
-        } elseif ($startupScriptUpdated) {
-            Write-Host ""
-            Write-Host "[Update] Startup scripts were updated. Changes will apply on next run." -ForegroundColor Cyan
+            Write-Host "[Update] Startup scripts were updated. Restarting to apply updates..." -ForegroundColor Cyan
+
+            $currentScript = Join-Path $scriptRoot "start_server.ps1"
+            $pendingScript = "$currentScript.new"
+            if (Test-Path $pendingScript) {
+                Start-Process powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Sleep -Seconds 1; Move-Item -Force '$pendingScript' '$currentScript'; & '$currentScript' -SkipUpdate"
+                exit 0
+            }
+
+            Start-Process powershell -NoProfile -ExecutionPolicy Bypass -File $currentScript -ArgumentList "-SkipUpdate"
+            exit 0
         }
 
     } catch {
@@ -203,10 +209,11 @@ if (-not $updatePerformed) {
     }
 
     }
-} catch {
-    Write-Warning "[Update] Update check failed or encountered an error: $_"
-    Write-Warning "[Update] Continuing with existing version..."
-}
+    } catch {
+        Write-Warning "[Update] Update check failed or encountered an error: $_"
+        Write-Warning "[Update] Continuing with existing version..."
+    }
+    }
 }
 
 # ==============================================================================
