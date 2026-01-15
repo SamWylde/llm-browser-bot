@@ -41,26 +41,6 @@ function getProtectedTabHintWithFallback(activeTab?: TabConnection, fallbackTab?
   return getProtectedTabHint(activeTab.url);
 }
 
-const PROTECTED_HOSTS = new Set([
-  'chat.openai.com',
-  'chatgpt.com'
-]);
-
-function isProtectedChatTab(url?: string): boolean {
-  if (!url) return false;
-  try {
-    const hostname = new URL(url).hostname.replace(/^www\./, '');
-    return PROTECTED_HOSTS.has(hostname);
-  } catch {
-    return false;
-  }
-}
-
-function getProtectedTabHint(url?: string): string | null {
-  if (!isProtectedChatTab(url)) return null;
-  return 'Active tab appears to be ChatGPT. To avoid hijacking the user chat, open a fresh automation tab with new_tab and use that tabId instead.';
-}
-
 export class ToolHandler {
   constructor(
     private commandHandler: BrowserCommandHandler,
