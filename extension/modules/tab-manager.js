@@ -63,9 +63,11 @@ export class TabManager {
         ...fallbackInfo,
         contentScriptAvailable: false
       });
-    } else {
-      tabState.updatePageMetadata(tabInfo);
+      tabState.connectionInfo.setError(tabInfo.error);
+      this.notifyListeners(tabId, 'stateChanged', tabState);
+      return { ok: false, error: tabInfo.error.message };
     }
+    tabState.updatePageMetadata(tabInfo);
 
     // Set up connection
     tabState.connectionInfo.userDisconnected = false;
