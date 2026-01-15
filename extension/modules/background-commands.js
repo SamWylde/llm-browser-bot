@@ -5,7 +5,17 @@ import { screenshot } from './background-screenshot.js';
 import { getLogs } from './background-console.js';
 
 export const getFromContentScript = async (tabId, command, params,) => {
-  return await chrome.tabs.sendMessage(tabId, { command, params });
+  try {
+    return await chrome.tabs.sendMessage(tabId, { command, params });
+  } catch (error) {
+    return {
+      error: {
+        code: 'CONTENT_SCRIPT_UNAVAILABLE',
+        message: 'Content script is not available in this tab. Try another page.'
+      },
+      details: error?.message
+    };
+  }
 }
 
 // Detect browser type from user agent
@@ -36,6 +46,18 @@ export const detectBrowser = () => {
 export const getTabInfo = async (tabId) => await getFromContentScript(tabId, 'getTabInfo');
 export const getElement = async (tabId, selector, xpath, visible) => {
   return await getFromContentScript(tabId, 'element', { selector, xpath, visible });
+}
+
+export const getFallbackTabInfo = async (tabId) => {
+  const tab = await chrome.tabs.get(tabId);
+  return {
+    url: tab.url,
+    title: tab.title,
+    pageVisibility: {
+      visible: tab.active,
+      visibilityState: tab.active ? 'visible' : 'hidden'
+    }
+  };
 }
 
 export const getAllTabs = async () => {
