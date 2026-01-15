@@ -228,13 +228,6 @@ export class MCPServerManager {
   private cleanupHttpSessions(): void {
     const now = Date.now();
     for (const [sessionId, info] of this.httpSessions) {
-      const connection = this.connections.get(info.connectionId);
-      if (connection?.type === 'http') {
-        if (connection.metrics.lastActivityAt > info.lastActivityAt) {
-          info.lastActivityAt = connection.metrics.lastActivityAt;
-        }
-      }
-
       if (now - info.lastActivityAt > info.timeoutMs) {
         logger.warn('HTTP session expired', {
           sessionId,
@@ -562,10 +555,20 @@ export class MCPServerManager {
       type: conn.type,
       initialized: conn.initialized,
       clientInfo: conn.clientInfo,
+      sessionId: conn.transport?.sessionId,
       metrics: {
         ...conn.metrics,
         idleMs: now - conn.metrics.lastActivityAt
       }
+    }));
+
+    const httpSessions = Array.from(this.httpSessions.values()).map(session => ({
+      sessionId: session.sessionId,
+      connectionId: session.connectionId,
+      createdAt: session.createdAt,
+      lastActivityAt: session.lastActivityAt,
+      idleMs: now - session.lastActivityAt,
+      timeoutMs: session.timeoutMs
     }));
 
     const tabs = this.tabRegistry.getAll().map(tab => ({
@@ -589,11 +592,13 @@ export class MCPServerManager {
       },
       sessions: {
         sse: {
-          total: this.sseSessions.size
+          total: this.sseSessions.size,
+          sessionIds: Array.from(this.sseSessions.keys())
         },
         http: {
           total: this.httpSessions.size,
-          defaultTimeoutMs: this.defaultHttpSessionTimeoutMs
+          defaultTimeoutMs: this.defaultHttpSessionTimeoutMs,
+          details: httpSessions
         }
       },
       tabs: {

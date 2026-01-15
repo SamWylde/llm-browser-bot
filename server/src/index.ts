@@ -73,27 +73,22 @@ const mcpServerManager = new MCPServerManager(
 
 const MCP_REQUIRED_ACCEPTS = ['application/json', 'text/event-stream'];
 
-function ensureMcpAcceptHeader(req: IncomingMessage, res: ServerResponse): boolean {
+function normalizeMcpAcceptHeader(req: IncomingMessage): void {
   const rawHeader = req.headers['accept'];
   const acceptHeader = Array.isArray(rawHeader) ? rawHeader.join(',') : rawHeader;
   const normalizedHeader = acceptHeader?.toLowerCase() ?? '';
 
   if (!acceptHeader || normalizedHeader.includes('*/*')) {
     req.headers['accept'] = MCP_REQUIRED_ACCEPTS.join(', ');
-    return true;
+    return;
   }
 
   const missing = MCP_REQUIRED_ACCEPTS.filter(value => !normalizedHeader.includes(value));
   if (missing.length === 0) {
-    return true;
+    return;
   }
 
-  res.writeHead(406, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({
-    error: 'Not Acceptable',
-    message: 'Streamable HTTP requires Accept: application/json and text/event-stream.'
-  }));
-  return false;
+  req.headers['accept'] = `${acceptHeader}, ${missing.join(', ')}`;
 }
 
 const httpServer = createServer(async (req, res) => {
@@ -220,10 +215,7 @@ const httpServer = createServer(async (req, res) => {
   if (req.url === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
     try {
       if (req.method === 'GET' || req.method === 'POST') {
-        const acceptOk = ensureMcpAcceptHeader(req, res);
-        if (!acceptOk) {
-          return;
-        }
+        normalizeMcpAcceptHeader(req);
       }
       await mcpServerManager.handleHttpRequest(req, res);
     } catch (error) {
