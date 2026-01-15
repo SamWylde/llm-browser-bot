@@ -34,6 +34,11 @@
         </div>
       </div>
 
+      <div class="messages-toolbar">
+        <input type="search" class="messages-filter" id="message-filter" placeholder="Filter by command, id, or JSON...">
+        <div class="messages-summary" id="messages-summary">0 groups</div>
+      </div>
+
       <div class="empty-state" id="empty-state">No messages yet</div>
       <div class="messages-list" id="messages-list"></div>
 
@@ -46,7 +51,10 @@
 
     <!-- Footer -->
     <div class="footer">
-      <span class="console-count" id="console-count">Console: 0</span>
+      <div class="footer-status">
+        <span class="console-count" id="console-count">Console: 0</span>
+        <span class="server-health" id="server-health">Server: Checking...</span>
+      </div>
       <button class="clear-button" id="clear-logs">Clear Logs</button>
     </div>
   </div>

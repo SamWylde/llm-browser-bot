@@ -28,10 +28,12 @@ if (!chrome.devtools || !chrome.devtools.inspectedWindow) {
 }
 
 const tabId = chrome.devtools.inspectedWindow.tabId;
-let selectedMessageIndex = -1;
+let selectedGroupId = null;
 let messages = [];
 let consoleLogCount = 0;
 let port = null;
+let messageFilter = '';
+let visibleGroups = [];
 
 // Initialize UI
 function initializeUI() {
@@ -61,10 +63,17 @@ function initializeUI() {
   document.getElementById('clear-logs').addEventListener('click', handleClearLogs);
   document.getElementById('clear-messages').addEventListener('click', handleClearMessages);
   document.getElementById('messages-list').addEventListener('click', handleMessageClick);
+  document.getElementById('message-filter').addEventListener('input', (event) => {
+    messageFilter = event.target.value || '';
+    renderMessages();
+  });
   document.addEventListener('keydown', handleKeyDown);
 
   // Resize handle
   initializeResizeHandle();
+
+  // Start health polling
+  startHealthPolling();
 }
 
 // Update UI based on connection state
@@ -114,43 +123,72 @@ function updateUI(connected, status = 'disconnected') {
 function renderMessages() {
   const messagesList = document.getElementById('messages-list');
   const messagesContainer = document.querySelector('.messages-container');
+  visibleGroups = buildMessageGroups(messages, messageFilter);
 
   // Toggle class based on whether we have messages
-  messagesContainer.classList.toggle('has-messages', messages.length > 0);
+  messagesContainer.classList.toggle('has-messages', visibleGroups.length > 0);
 
+  const emptyState = document.getElementById('empty-state');
   if (messages.length === 0) {
-    return;
+    emptyState.textContent = 'No messages yet';
+  } else if (visibleGroups.length === 0) {
+    emptyState.textContent = 'No messages match the filter';
+  }
+
+  if (!visibleGroups.find(group => group.groupId === selectedGroupId)) {
+    selectedGroupId = null;
+    const detailContainer = document.getElementById('detail-container');
+    detailContainer.classList.remove('visible');
   }
 
   messagesList.innerHTML = '';
 
-  messages.forEach((msg, index) => {
-    const messageEl = document.createElement('div');
-    messageEl.className = 'message';
-    if (index === selectedMessageIndex) {
-      messageEl.classList.add('selected');
+  visibleGroups.forEach((group) => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'message-group';
+    if (group.groupId === selectedGroupId) {
+      groupEl.classList.add('selected');
     }
+    groupEl.dataset.groupId = group.groupId;
 
-    const arrow = msg.direction === 'outgoing' ? '&#x2B06' : '&#x2B07'; // Up arrow for outgoing, down arrow for incoming
-    const arrowClass = msg.direction === 'outgoing' ? 'outgoing' : 'incoming';
+    const headerEl = document.createElement('div');
+    headerEl.className = 'message-group-header';
 
-    // Show the raw JSON data
-    const dataText = JSON.stringify(msg.data);
+    const titleEl = document.createElement('div');
+    titleEl.className = 'message-group-title';
 
-    messageEl.innerHTML = `
-      <div class="message-data">
-        <span class="message-arrow ${arrowClass}">${arrow}</span>
-        ${dataText}
-      </div>
-      <div class="message-time">${formatTime(msg.timestamp)}</div>
-    `;
+    const commandEl = document.createElement('div');
+    commandEl.className = 'message-group-command';
+    commandEl.textContent = group.commandName || 'message';
 
-    messageEl.dataset.index = index;
-    messagesList.appendChild(messageEl);
+    const metaEl = document.createElement('div');
+    metaEl.className = 'message-group-meta';
+    const idLabel = group.commandId ? `ID: ${group.commandId}` : 'No ID';
+    metaEl.textContent = `${idLabel} • ${group.messages.length} message${group.messages.length === 1 ? '' : 's'}`;
+
+    titleEl.appendChild(commandEl);
+    titleEl.appendChild(metaEl);
+
+    const timeEl = document.createElement('div');
+    timeEl.className = 'message-group-time';
+    timeEl.textContent = formatTime(group.lastTimestamp);
+
+    headerEl.appendChild(titleEl);
+    headerEl.appendChild(timeEl);
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'message-group-body';
+
+    group.messages.forEach((msg) => {
+      bodyEl.appendChild(createMessageEntry(msg));
+    });
+
+    groupEl.appendChild(headerEl);
+    groupEl.appendChild(bodyEl);
+    messagesList.appendChild(groupEl);
   });
 
-  // Scroll to bottom
-  messagesList.scrollTop = messagesList.scrollHeight;
+  updateMessageSummary();
 }
 
 // Format timestamp
@@ -167,62 +205,31 @@ function formatTime(date) {
 
 // Handle message click
 function handleMessageClick(e) {
-  const messageEl = e.target.closest('.message');
-  if (!messageEl) return;
-
-  const index = parseInt(messageEl.dataset.index);
-  selectMessage(index);
+  const headerEl = e.target.closest('.message-group-header');
+  if (!headerEl) return;
+  const groupEl = headerEl.closest('.message-group');
+  if (!groupEl) return;
+  const groupId = groupEl.dataset.groupId;
+  selectGroup(groupId);
 }
 
 // Select message
-function selectMessage(index) {
-  selectedMessageIndex = index;
+function selectGroup(groupId) {
+  selectedGroupId = groupId;
 
-  // Update selected state
-  document.querySelectorAll('.message').forEach((el, i) => {
-    el.classList.toggle('selected', i === index);
+  document.querySelectorAll('.message-group').forEach((el) => {
+    el.classList.toggle('selected', el.dataset.groupId === groupId);
   });
 
   // Show detail view
   const detailContainer = document.getElementById('detail-container');
   const detailContent = document.getElementById('detail-content');
 
-  if (index >= 0 && index < messages.length) {
+  const group = visibleGroups.find(item => item.groupId === groupId);
+  if (group) {
     detailContainer.classList.add('visible');
-    const message = messages[index];
-    const data = message.data;
-
-    // Check if this is a screenshot response
-    if (data.type === 'response' && data.success && data.result && data.result.data &&
-      data.result.mimeType && data.result.mimeType.startsWith('image/')) {
-      // Create image preview for screenshot
-      const img = document.createElement('img');
-      img.src = `data:${data.result.mimeType};base64,${data.result.data}`;
-      img.style.cssText = 'max-width: 100%; height: auto; cursor: pointer; display: block; border: 1px solid #e0e0e0; border-radius: 4px;';
-      img.title = 'Click to open in new tab';
-
-      // Open in new tab on click
-      img.addEventListener('click', () => {
-        window.open(img.src, '_blank');
-      });
-
-      // Show image and data
-      detailContent.innerHTML = '';
-      detailContent.appendChild(img);
-
-      // Add the rest of the data below the image
-      const dataInfo = document.createElement('pre');
-      dataInfo.textContent = JSON.stringify(data.result, null, 2);
-      dataInfo.style.cssText = 'margin-top: 10px; font-size: 12px; overflow: auto;';
-      detailContent.appendChild(dataInfo);
-    } else {
-      // Show only the actual message data, not the wrapper
-      detailContent.innerHTML = '';
-      const pre = document.createElement('pre');
-      pre.style.cssText = 'margin: 0; font-size: 12px; overflow: auto;';
-      pre.textContent = JSON.stringify(message.data, null, 2);
-      detailContent.appendChild(pre);
-    }
+    detailContent.innerHTML = '';
+    detailContent.appendChild(renderGroupDetail(group));
   } else {
     detailContainer.classList.remove('visible');
   }
@@ -230,11 +237,17 @@ function selectMessage(index) {
 
 // Handle keyboard navigation
 function handleKeyDown(e) {
-  if (e.key === 'ArrowUp' && selectedMessageIndex > 0) {
-    selectMessage(selectedMessageIndex - 1);
+  if (visibleGroups.length === 0) {
+    return;
+  }
+
+  const currentIndex = visibleGroups.findIndex(group => group.groupId === selectedGroupId);
+
+  if (e.key === 'ArrowUp' && currentIndex > 0) {
+    selectGroup(visibleGroups[currentIndex - 1].groupId);
     e.preventDefault();
-  } else if (e.key === 'ArrowDown' && selectedMessageIndex < messages.length - 1) {
-    selectMessage(selectedMessageIndex + 1);
+  } else if (e.key === 'ArrowDown' && currentIndex < visibleGroups.length - 1) {
+    selectGroup(visibleGroups[currentIndex + 1].groupId);
     e.preventDefault();
   } else if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
     // Clear messages
@@ -274,12 +287,229 @@ function handleClearMessages() {
   // Clear the detail view
   const detailContainer = document.getElementById('detail-container');
   detailContainer.classList.remove('visible');
-  selectedMessageIndex = -1;
+  selectedGroupId = null;
 }
 
 // Update console count
 function updateConsoleCount() {
   document.getElementById('console-count').textContent = `Console: ${consoleLogCount}`;
+}
+
+function buildMessageGroups(allMessages, filterText) {
+  const groupsMap = new Map();
+
+  allMessages.forEach((msg) => {
+    const commandId = msg.data?.id;
+    const groupId = commandId !== undefined && commandId !== null ? `id:${commandId}` : `msg:${msg.id}`;
+
+    if (!groupsMap.has(groupId)) {
+      groupsMap.set(groupId, {
+        groupId,
+        commandId,
+        commandName: null,
+        messages: [],
+        firstTimestamp: msg.timestamp,
+        lastTimestamp: msg.timestamp
+      });
+    }
+
+    const group = groupsMap.get(groupId);
+    group.messages.push(msg);
+    group.lastTimestamp = msg.timestamp;
+
+    const commandName = getMessageCommandName(msg);
+    if (commandName && !group.commandName) {
+      group.commandName = commandName;
+    }
+  });
+
+  const groups = Array.from(groupsMap.values())
+    .sort((a, b) => new Date(a.lastTimestamp) - new Date(b.lastTimestamp));
+
+  if (!filterText) {
+    return groups;
+  }
+
+  const normalized = filterText.toLowerCase();
+  return groups.filter(group => groupMatchesFilter(group, normalized));
+}
+
+function groupMatchesFilter(group, normalized) {
+  const commandText = `${group.commandName || ''}`.toLowerCase();
+  const idText = `${group.commandId ?? ''}`.toLowerCase();
+  if (commandText.includes(normalized) || idText.includes(normalized)) {
+    return true;
+  }
+
+  return group.messages.some(msg => {
+    const preview = JSON.stringify(msg.data || {});
+    return preview.toLowerCase().includes(normalized);
+  });
+}
+
+function getMessageCommandName(message) {
+  if (message.data?.command) {
+    return message.data.command;
+  }
+  if (message.data?.method) {
+    return message.data.method;
+  }
+  if (message.data?.type) {
+    return message.data.type;
+  }
+  return 'message';
+}
+
+function createMessageEntry(message) {
+  const details = document.createElement('details');
+  details.className = 'message-entry';
+
+  const summary = document.createElement('summary');
+
+  const direction = document.createElement('span');
+  direction.className = `message-direction ${message.direction}`;
+  direction.textContent = message.direction === 'outgoing' ? '↑' : '↓';
+
+  const preview = document.createElement('span');
+  preview.className = 'message-entry-preview';
+  preview.textContent = getMessagePreview(message);
+
+  const time = document.createElement('span');
+  time.className = 'message-entry-time';
+  time.textContent = formatTime(message.timestamp);
+
+  summary.appendChild(direction);
+  summary.appendChild(preview);
+  summary.appendChild(time);
+
+  const pre = document.createElement('pre');
+  pre.textContent = JSON.stringify(message.data, null, 2);
+
+  details.appendChild(summary);
+  details.appendChild(pre);
+
+  return details;
+}
+
+function getMessagePreview(message) {
+  const previewText = JSON.stringify(message.data || {});
+  if (previewText.length <= 160) {
+    return previewText;
+  }
+  return `${previewText.slice(0, 160)}…`;
+}
+
+function renderGroupDetail(group) {
+  const container = document.createElement('div');
+  container.className = 'detail-group';
+
+  const header = document.createElement('div');
+  header.className = 'detail-group-header';
+  const title = document.createElement('strong');
+  title.textContent = group.commandName || 'message';
+  const meta = document.createElement('span');
+  const idLabel = group.commandId ? `ID: ${group.commandId}` : 'No ID';
+  meta.textContent = `${idLabel} • ${group.messages.length} message${group.messages.length === 1 ? '' : 's'}`;
+  header.appendChild(title);
+  header.appendChild(meta);
+  container.appendChild(header);
+
+  group.messages.forEach((message) => {
+    const entry = document.createElement('details');
+    entry.className = 'detail-entry';
+
+    const summary = document.createElement('summary');
+    const direction = document.createElement('span');
+    direction.className = `message-direction ${message.direction}`;
+    direction.textContent = message.direction === 'outgoing' ? '↑' : '↓';
+    const label = document.createElement('span');
+    label.textContent = getMessageCommandName(message);
+    const time = document.createElement('span');
+    time.textContent = formatTime(message.timestamp);
+    time.style.marginLeft = 'auto';
+    time.style.color = 'var(--text-secondary)';
+    summary.appendChild(direction);
+    summary.appendChild(label);
+    summary.appendChild(time);
+
+    entry.appendChild(summary);
+
+    const screenshotData = getScreenshotData(message.data);
+    if (screenshotData) {
+      const screenshotWrapper = document.createElement('div');
+      screenshotWrapper.className = 'detail-screenshot';
+
+      const img = document.createElement('img');
+      img.src = `data:${screenshotData.mimeType};base64,${screenshotData.data}`;
+      img.style.cssText = 'max-width: 100%; height: auto; cursor: pointer; display: block; border: 1px solid #e0e0e0; border-radius: 4px;';
+      img.title = 'Click to open in new tab';
+      img.addEventListener('click', () => {
+        window.open(img.src, '_blank');
+      });
+
+      screenshotWrapper.appendChild(img);
+      entry.appendChild(screenshotWrapper);
+    }
+
+    const pre = document.createElement('pre');
+    pre.textContent = JSON.stringify(message.data, null, 2);
+    entry.appendChild(pre);
+
+    container.appendChild(entry);
+  });
+
+  return container;
+}
+
+function getScreenshotData(data) {
+  if (!data || data.type !== 'response' || !data.success || !data.result) {
+    return null;
+  }
+  if (!data.result.data || !data.result.mimeType) {
+    return null;
+  }
+  if (!data.result.mimeType.startsWith('image/')) {
+    return null;
+  }
+  return {
+    data: data.result.data,
+    mimeType: data.result.mimeType
+  };
+}
+
+function updateMessageSummary() {
+  const summaryEl = document.getElementById('messages-summary');
+  summaryEl.textContent = `${visibleGroups.length} group${visibleGroups.length === 1 ? '' : 's'}`;
+}
+
+async function fetchServerHealth() {
+  const healthEl = document.getElementById('server-health');
+  const endpoints = ['http://localhost:61822/health', 'http://localhost:61822/status'];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Status ${response.status}`);
+      }
+      const data = await response.json();
+      const connectionCount = data.connections?.total ?? 0;
+      const tabCount = data.tabs?.total ?? 0;
+      const uptimeMs = data.uptimeMs ?? 0;
+      const uptimeMinutes = Math.floor(uptimeMs / 60000);
+      healthEl.textContent = `Server: OK • ${connectionCount} connection${connectionCount === 1 ? '' : 's'} • ${tabCount} tab${tabCount === 1 ? '' : 's'} • ${uptimeMinutes}m uptime`;
+      return;
+    } catch (error) {
+      continue;
+    }
+  }
+
+  healthEl.textContent = 'Server: Unreachable';
+}
+
+function startHealthPolling() {
+  fetchServerHealth();
+  setInterval(fetchServerHealth, 10000);
 }
 
 // Initialize resize handle
