@@ -211,8 +211,9 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  // Handle /mcp endpoint for Streamable HTTP (ChatGPT, etc.)
-  if (req.url === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
+  // Handle /mcp endpoint for Streamable HTTP / SSE
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  if (url.pathname === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
     try {
       if (req.method === 'GET' || req.method === 'POST') {
         normalizeMcpAcceptHeader(req);

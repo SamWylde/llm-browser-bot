@@ -427,15 +427,16 @@ export class MCPServerManager {
     });
   }
 
-  async connectSSE(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  async connectSSE(req: IncomingMessage, res: ServerResponse, endpoint: string = '/messages'): Promise<void> {
     const connectionId = `sse-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     logger.log('New SSE connection request', {
       connectionId,
+      endpoint,
       ...this.buildRequestContext(req)
     });
 
-    const transport = new SSEServerTransport('/messages', res);
+    const transport = new SSEServerTransport(endpoint, res);
     const server = this.createMCPServer(connectionId);
 
     this.connections.set(connectionId, {
@@ -609,154 +610,41 @@ export class MCPServerManager {
   }
 
   /**
-   * Handle HTTP requests for Streamable HTTP transport (ChatGPT, etc.)
+   * Handle HTTP requests for /mcp endpoint
+   * Switches to SSEServerTransport to ensure compatibility with standard MCP clients
    */
   async handleHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    // Check for existing session
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const sessionId = url.searchParams.get('sessionId');
 
-    if (sessionId && this.httpSessions.has(sessionId)) {
-      // Existing session - use existing transport
-      const sessionInfo = this.httpSessions.get(sessionId)!;
-      const connection = this.connections.get(sessionInfo.connectionId);
-      if (connection?.transport) {
-        sessionInfo.lastActivityAt = Date.now();
-        this.touchConnection(connection.id, { lastRequestAt: Date.now() });
-        // Parse body for POST requests
-        if (req.method === 'POST') {
-          const body = await this.parseRequestBody(req);
-          await (connection.transport as StreamableHTTPServerTransport).handleRequest(req, res, body);
-        } else {
-          await (connection.transport as StreamableHTTPServerTransport).handleRequest(req, res);
-        }
-      } else {
-        logger.warn('HTTP session found without active connection', {
-          sessionId,
-          connectionId: sessionInfo.connectionId
-        });
-        this.httpSessions.delete(sessionId);
+    // Case 1: GET request -> Start SSE Session
+    if (req.method === 'GET') {
+      if (!req.headers['mcp-protocol-version']) {
+        logger.warn('HTTP request missing mcp-protocol-version header - Shiming it', this.buildRequestContext(req));
+        req.headers['mcp-protocol-version'] = '2024-11-05';
       }
-      return;
+
+      // Use SSEServerTransport but point client to /mcp for POSTs
+      // We pass the endpoint path '/mcp' so the client knows where to send messages
+      return this.connectSSE(req, res, '/mcp');
     }
 
-    if (sessionId && !this.httpSessions.has(sessionId)) {
-      logger.warn('HTTP request with unknown session', {
-        sessionId,
-        ...this.buildRequestContext(req)
-      });
+    // Case 2: POST request -> Handle Message
+    if (req.method === 'POST') {
+      if (!sessionId) {
+        logger.error('Received POST to /mcp without sessionId');
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing sessionId' }));
+        return;
+      }
+
+      // Use the common SSE message handler which routes by sessionId
+      return this.handleSSEMessage(req, res);
     }
 
-    if (!req.headers['mcp-protocol-version']) {
-      logger.warn('HTTP request missing mcp-protocol-version header - Shiming it', this.buildRequestContext(req));
-      req.headers['mcp-protocol-version'] = '2024-11-05';
-    }
-
-    // New session - create new transport and server
-    const connectionId = `http-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const server = this.createMCPServer(connectionId);
-    const timeoutHeader = this.parseSessionTimeout(req.headers['mcp-session-timeout'] as string | undefined);
-    const sessionTimeoutMs = timeoutHeader ?? this.defaultHttpSessionTimeoutMs;
-
-    logger.log('Initializing HTTP MCP session', {
-      connectionId,
-      timeoutMs: sessionTimeoutMs,
-      ...this.buildRequestContext(req)
-    });
-
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      enableJsonResponse: false, // Use SSE for streaming
-      onsessioninitialized: (newSessionId: string) => {
-        // Store the session for future requests
-        const conn = this.connections.get(connectionId);
-        if (conn) {
-          this.httpSessions.set(newSessionId, {
-            sessionId: newSessionId,
-            connectionId,
-            createdAt: Date.now(),
-            lastActivityAt: Date.now(),
-            timeoutMs: sessionTimeoutMs
-          });
-          logger.log('HTTP session initialized', {
-            sessionId: newSessionId,
-            connectionId,
-            timeoutMs: sessionTimeoutMs
-          });
-        }
-      }
-    });
-
-    const connection: MCPConnection = {
-      id: connectionId,
-      server,
-      type: 'http',
-      transport,
-      initialized: false,
-      metrics: {
-        createdAt: Date.now(),
-        lastActivityAt: Date.now()
-      }
-    };
-
-    this.connections.set(connectionId, connection);
-
-    // Connect server to transport
-    try {
-      await server.connect(transport);
-      logger.log(`MCP HTTP server connected (${connectionId})`);
-    } catch (error) {
-      logger.error(`Failed to connect MCP HTTP server (${connectionId}):`, error);
-      this.connections.delete(connectionId);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Failed to initialize MCP server' }));
-      return;
-    }
-
-    // Handle cleanup when transport closes
-    transport.onclose = () => {
-      logger.log(`MCP HTTP client disconnected (${connectionId})`);
-      // Clean up session
-      if (transport.sessionId) {
-        this.httpSessions.delete(transport.sessionId);
-      }
-      this.connections.delete(connectionId);
-    };
-
-    // Intercept response to debug 400 errors
-    const originalWriteHead = res.writeHead;
-    const originalEnd = res.end;
-
-    res.writeHead = function (statusCode: number, ...args: any[]) {
-      if (statusCode >= 400) {
-        logger.error(`Debug: Caught ${statusCode} response for ${connectionId}`);
-      }
-      return originalWriteHead.apply(res, [statusCode, ...args] as any);
-    };
-
-    res.end = function (chunk: any, ...args: any[]) {
-      if (chunk && chunk.toString().includes('error')) {
-        logger.error(`Debug: Response body for ${connectionId}: ${chunk.toString()}`);
-      }
-      return originalEnd.apply(res, [chunk, ...args] as any);
-    };
-
-    try {
-      if (req.method === 'POST') {
-        const body = await this.parseRequestBody(req);
-        await transport.handleRequest(req, res, body);
-      } else {
-        await transport.handleRequest(req, res);
-      }
-    } catch (err: any) {
-      logger.error('Error in transport.handleRequest:', err);
-      // Restore original methods just in case
-      res.writeHead = originalWriteHead;
-      res.end = originalEnd;
-      if (!res.headersSent) {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: err.message }));
-      }
-    }
+    // Fallback
+    res.writeHead(405);
+    res.end();
   }
 
   private parseRequestBody(req: IncomingMessage): Promise<unknown> {
