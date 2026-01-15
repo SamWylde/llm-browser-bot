@@ -82,27 +82,43 @@ export class ToolHandler {
             // Map browser tabs to our format and check connection status
             if (browserTabs && Array.isArray(browserTabs)) {
               const connectedTabIds = new Set(this.tabRegistry.getAll().map(t => t.tabId));
-              const allTabs = browserTabs.map((t: any) => ({
-                tabId: t.id.toString(),
-                title: t.title,
-                url: t.url,
-                active: t.active,
-                connected: connectedTabIds.has(t.id.toString())
-              }));
-              result = { tabs: allTabs };
+              const allTabs = browserTabs.map((t: any) => {
+                const isChatGPT = isProtectedChatTab(t.url);
+                return {
+                  tabId: t.id.toString(),
+                  title: t.title,
+                  url: t.url,
+                  active: t.active,
+                  connected: connectedTabIds.has(t.id.toString()),
+                  automationSafe: !isChatGPT && connectedTabIds.has(t.id.toString())
+                };
+              });
+
+              // Find recommended automation tab
+              const safeTabs = allTabs.filter((t: any) => t.automationSafe);
               const activeTab = allTabs.find((tab: any) => tab.active);
-              const protectedHint = getProtectedTabHint(activeTab?.url);
-              if (protectedHint) {
-                result.hint = protectedHint;
-              }
+
+              result = { tabs: allTabs };
+
+              // Build helpful hint for LLM
               if (connectedTabIds.size === 0) {
-                result.hint = 'No tabs are currently connected to the server.';
+                result.hint = 'No tabs are connected to the server. Use new_tab to create an automation tab.';
+              } else if (safeTabs.length === 0) {
+                result.hint = 'No safe automation tabs available. Use new_tab to create one.';
+              } else if (isProtectedChatTab(activeTab?.url)) {
+                const recommended = safeTabs[0];
+                result.hint = `Active tab is ChatGPT - do NOT automate it. Use tabId "${recommended.tabId}" (${recommended.title || recommended.url}) for automation.`;
+                result.recommendedTabId = recommended.tabId;
+              } else {
+                const connectedCount = allTabs.filter((t: any) => t.connected).length;
+                result.hint = `${connectedCount} tab(s) connected. Tabs with automationSafe=true are ready for automation.`;
               }
             } else {
               // Fallback to registry if command failed or returned invalid data
               const tabs = this.tabRegistry.getAll().map(tab => ({
                 ...formatTabDetail(tab),
-                connected: true
+                connected: true,
+                automationSafe: !isProtectedChatTab(tab.url)
               }));
               result = { tabs };
             }
@@ -110,20 +126,14 @@ export class ToolHandler {
             // Fallback if bridge command fails (e.g. timeout)
             const tabs = this.tabRegistry.getAll().map(tab => ({
               ...formatTabDetail(tab),
-              connected: true
+              connected: true,
+              automationSafe: !isProtectedChatTab(tab.url)
             }));
             result = { tabs };
           }
 
           if (result.tabs.length === 0) {
-            result.hint = 'There currently are no tabs connected. Use the new_tab tool to create one!';
-          }
-          if (!result.hint) {
-            const activeTab = result.tabs.find((tab: any) => tab.active);
-            const protectedHint = getProtectedTabHint(activeTab?.url);
-            if (protectedHint) {
-              result.hint = protectedHint;
-            }
+            result.hint = 'No tabs connected. Use new_tab to create an automation tab!';
           }
           break;
         case 'tab_detail':
