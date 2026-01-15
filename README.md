@@ -81,6 +81,17 @@ npm start
 
 ## Using with Claude Desktop
 
+> **Full setup guide**: See [SETUP.md](SETUP.md) for detailed instructions for all platforms including Cline, Continue, Cursor, ChatGPT, and Gemini CLI.
+>
+> **All major AI platforms now support MCP!** Including Claude Desktop, ChatGPT (Developer Mode), and Gemini CLI.
+
+**Config file locations:**
+| OS | Path |
+|----|------|
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
+
 Add to your Claude Desktop config:
 
 ### Option 1: Using the bridge command (Recommended)
@@ -315,7 +326,7 @@ Execute JavaScript with async/await support:
 - `kapture://tab/{tabId}/console` - Get console logs from a specific tab (with pagination support)
 - `kapture://tab/{tabId}/screenshot` - Capture screenshots of a tab or element
 - `kapture://tab/{tabId}/dom` - Get HTML content of a tab or element
-- `kapture://tab/{tabId}/elementsFromPoint` - Get elements at specific coordinates
+- `kapture://tab/{tabId}/elements_from_point` - Get elements at specific coordinates
 - `kapture://tab/{tabId}/elements?selector={selector}&visible={true|false|all}` - Query all elements matching a CSS selector or XPath with optional visibility filtering
 
 ## Development

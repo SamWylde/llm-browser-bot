@@ -1,7 +1,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { WebSocketTransport } from './websocket-transport.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import { IncomingMessage, ServerResponse } from 'http';
+
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
@@ -10,6 +11,8 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { WebSocket } from 'ws';
+import { IncomingMessage, ServerResponse } from 'http';
+import { randomUUID } from 'crypto';
 import { logger } from './logger.js';
 import { TabRegistry } from './tab-registry.js';
 import { BrowserWebSocketManager } from './browser-websocket-manager.js';
@@ -53,8 +56,8 @@ const SERVER_INFO = {
 interface MCPConnection {
   id: string;
   server: Server;
-  type: 'websocket' | 'sse';
-  transport?: SSEServerTransport;
+  type: 'websocket' | 'sse' | 'http';
+  transport?: SSEServerTransport | StreamableHTTPServerTransport;
   clientInfo?: { name?: string; version?: string };
   initialized: boolean;
 }
@@ -62,6 +65,7 @@ interface MCPConnection {
 export class MCPServerManager {
   private connections: Map<string, MCPConnection> = new Map();
   private dynamicTabResources: Map<string, any> = new Map();
+  private httpSessions: Map<string, MCPConnection> = new Map();
 
   constructor(
     private browserWebSocketManager: BrowserWebSocketManager,
@@ -121,7 +125,7 @@ export class MCPServerManager {
       this.dynamicTabResources.delete(tabId);
       this.dynamicTabResources.delete(`${tabId}/console`);
       this.dynamicTabResources.delete(`${tabId}/screenshot`);
-      this.dynamicTabResources.delete(`${tabId}/elementsFromPoint`);
+      this.dynamicTabResources.delete(`${tabId}/elements_from_point`);
       this.dynamicTabResources.delete(`${tabId}/dom`);
       this.dynamicTabResources.delete(`${tabId}/elements`);
 
@@ -409,7 +413,7 @@ export class MCPServerManager {
       return;
     }
 
-    await targetConnection.transport.handlePostMessage(req, res);
+    await (targetConnection.transport as SSEServerTransport).handlePostMessage(req, res);
   }
 
   // Used to show the connected MCP clients at http://localhost:61822/
@@ -420,5 +424,102 @@ export class MCPServerManager {
       clientInfo: conn.clientInfo,
       initialized: conn.initialized
     }));
+  }
+
+  /**
+   * Handle HTTP requests for Streamable HTTP transport (ChatGPT, etc.)
+   */
+  async handleHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // Check for existing session
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+    if (sessionId && this.httpSessions.has(sessionId)) {
+      // Existing session - use existing transport
+      const connection = this.httpSessions.get(sessionId)!;
+      if (connection.transport) {
+        // Parse body for POST requests
+        if (req.method === 'POST') {
+          const body = await this.parseRequestBody(req);
+          await (connection.transport as StreamableHTTPServerTransport).handleRequest(req, res, body);
+        } else {
+          await (connection.transport as StreamableHTTPServerTransport).handleRequest(req, res);
+        }
+      }
+      return;
+    }
+
+    // New session - create new transport and server
+    const connectionId = `http-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const server = this.createMCPServer(connectionId);
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      enableJsonResponse: false, // Use SSE for streaming
+      onsessioninitialized: (newSessionId: string) => {
+        // Store the session for future requests
+        const conn = this.connections.get(connectionId);
+        if (conn) {
+          this.httpSessions.set(newSessionId, conn);
+          logger.log(`HTTP session initialized: ${newSessionId}`);
+        }
+      }
+    });
+
+    const connection: MCPConnection = {
+      id: connectionId,
+      server,
+      type: 'http',
+      transport,
+      initialized: false
+    };
+
+    this.connections.set(connectionId, connection);
+
+    // Connect server to transport
+    try {
+      await server.connect(transport);
+      logger.log(`MCP HTTP server connected (${connectionId})`);
+    } catch (error) {
+      logger.error(`Failed to connect MCP HTTP server (${connectionId}):`, error);
+      this.connections.delete(connectionId);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to initialize MCP server' }));
+      return;
+    }
+
+    // Handle cleanup when transport closes
+    transport.onclose = () => {
+      logger.log(`MCP HTTP client disconnected (${connectionId})`);
+      // Clean up session
+      if (transport.sessionId) {
+        this.httpSessions.delete(transport.sessionId);
+      }
+      this.connections.delete(connectionId);
+    };
+
+    // Parse body for POST requests
+    if (req.method === 'POST') {
+      const body = await this.parseRequestBody(req);
+      await transport.handleRequest(req, res, body);
+    } else {
+      await transport.handleRequest(req, res);
+    }
+  }
+
+  private parseRequestBody(req: IncomingMessage): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          resolve(body ? JSON.parse(body) : undefined);
+        } catch (error) {
+          reject(new Error('Invalid JSON body'));
+        }
+      });
+      req.on('error', reject);
+    });
   }
 }

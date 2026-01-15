@@ -1,10 +1,10 @@
-# Gemini Project: Kapture
+# Gemini Project: LLM Browser Bot
 
-This document provides a high-level overview of the Kapture project, intended to be used as a reference for the Gemini AI assistant.
+This document provides a high-level overview of the LLM Browser Bot project, intended to be used as a reference for AI assistants.
 
 ## Project Goal
 
-The primary goal of the Kapture project is to create a browser extension that can record user interactions and translate them into automated scripts. This involves capturing events like clicks, keypresses, and navigation, and then generating code that can replay these actions.
+The primary goal of the LLM Browser Bot project is to create a Chrome DevTools Extension that enables browser automation through the Model Context Protocol (MCP). It allows AI applications like Claude to control web browsers via a three-layer architecture: Chrome Extension, MCP Server, and WebSocket Bridge.
 
 ## Key Directories
 
@@ -13,24 +13,22 @@ The primary goal of the Kapture project is to create a browser extension that ca
     *   `background.js`: The extension's service worker, handling background tasks and managing the extension's state.
     *   `content-script.js`: Injected into web pages to capture user interactions.
     *   `panel.js` & `panel.html`: The user interface for the extension's developer tools panel.
-*   **`/server`**: Contains a Node.js server that the extension communicates with. This server is likely responsible for processing the captured events and generating the automation scripts.
+*   **`/server`**: Contains the Node.js MCP server that the extension communicates with. This server handles MCP protocol communication and routes commands to browser tabs.
 *   **`/e2e`**: End-to-end tests for the project, ensuring that the extension and server work together as expected.
 *   **`/website`**: Project documentation and website (GitHub Pages).
-*   **`/test-app`**: A simple web application used for testing the Kapture extension.
+*   **`/test-app`**: A test web application used for testing the LLM Browser Bot extension.
 
-## How it Works (Inferred)
+## How it Works
 
-1.  The user installs the Kapture Chrome extension.
-2.  The user opens the browser's developer tools and selects the "Kapture" panel.
-3.  The user starts a recording session.
-4.  The `content-script.js` captures user interactions (clicks, keypresses, etc.) on the active tab.
-5.  The captured events are sent to the `background.js` script.
-6.  `background.js` communicates with the Node.js server in the `/server` directory.
-7.  The server processes the events and generates an automation script.
-8.  The generated script is displayed in the Kapture developer tools panel.
+1.  The user installs the LLM Browser Bot Chrome extension.
+2.  The user opens the browser's developer tools and selects the "LLM Browser Bot" panel.
+3.  The extension connects to the MCP server automatically.
+4.  AI clients (like Claude Desktop) connect to the MCP server via stdio or WebSocket.
+5.  The server routes commands to specific browser tabs based on tabId.
+6.  The extension executes commands (click, navigate, fill, etc.) and returns results.
 
 ## Development & Testing
 
 *   **Dependencies**: The project uses Node.js and has `package.json` files in the `/e2e` and `/server` directories.
-*   **Testing**: End-to-end tests are located in the `/e2e` directory and can be run with `npm test` (inferred from the presence of `package.json` and a `test` directory).
-*   **Building**: The extension can likely be built and packaged for release using the scripts in the `.github/workflows` directory.
+*   **Testing**: End-to-end tests are located in the `/e2e` directory and can be run with `npm test`.
+*   **Building**: The extension can be built and packaged using scripts in the `.github/workflows` directory.

@@ -20,7 +20,7 @@ export class ResourceHandler {
     const patterns = [
       { regex: /^kapture:\/\/tab\/(.+)\/console(?:\?.*)?$/, tool: 'console_logs' },
       { regex: /^kapture:\/\/tab\/(.+)\/screenshot(?:\?.*)?$/, tool: 'screenshot' },
-      { regex: /^kapture:\/\/tab\/(.+)\/elementsFromPoint(?:\?.*)?$/, tool: 'elementsFromPoint' },
+      { regex: /^kapture:\/\/tab\/(.+)\/elements_from_point(?:\?.*)?$/, tool: 'elements_from_point' },
       { regex: /^kapture:\/\/tab\/(.+)\/dom(?:\?.*)?$/, tool: 'dom' },
       { regex: /^kapture:\/\/tab\/(.+)\/elements(?:\?.*)?$/, tool: 'elements' },
       { regex: /^kapture:\/\/tab\/(.+)$/, tool: 'tab_detail' }

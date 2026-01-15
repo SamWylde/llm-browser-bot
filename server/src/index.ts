@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { WebSocketServer } from 'ws';
-import { createServer } from 'http';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
@@ -74,8 +74,8 @@ const mcpServerManager = new MCPServerManager(
 const httpServer = createServer(async (req, res) => {
   // Enable CORS for all endpoints
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id');
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -180,6 +180,20 @@ const httpServer = createServer(async (req, res) => {
       logger.error('Error handling configure request:', error);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Failed to configure assistants' }));
+    }
+    return;
+  }
+
+  // Handle /mcp endpoint for Streamable HTTP (ChatGPT, etc.)
+  if (req.url === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
+    try {
+      await mcpServerManager.handleHttpRequest(req, res);
+    } catch (error) {
+      logger.error('Error handling MCP HTTP request:', error);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Internal server error' }));
+      }
     }
     return;
   }
@@ -293,7 +307,7 @@ async function startServer() {
     console.log(`  Screenshot: http://localhost:${PORT}/tab/{tabId}/screenshot`);
     console.log(`  View image: http://localhost:${PORT}/tab/{tabId}/screenshot/view`);
     console.log(`  Elements: http://localhost:${PORT}/tab/{tabId}/elements`);
-    console.log(`  Point query: http://localhost:${PORT}/tab/{tabId}/elementsFromPoint`);
+    console.log(`  Point query: http://localhost:${PORT}/tab/{tabId}/elements_from_point`);
     console.log(`  DOM: http://localhost:${PORT}/tab/{tabId}/dom`);
     console.log('='.repeat(70));
   });

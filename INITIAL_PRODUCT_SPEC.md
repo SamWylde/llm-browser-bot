@@ -1,7 +1,7 @@
-# Kapture Chrome Extension - Product Specification
+# LLM Browser Bot - Product Specification
 
 ## Overview
-Kapture is a Chrome DevTools Extension that provides remote browser automation capabilities similar to Puppeteer. It adds a "Kapture" panel to Chrome DevTools where developers can establish WebSocket connections to a local server, allowing external applications to control browser tabs through JSON-based commands.
+LLM Browser Bot is a Chrome DevTools Extension that provides remote browser automation capabilities similar to Puppeteer. It adds a "LLM Browser Bot" panel to Chrome DevTools where developers can establish WebSocket connections to a local server, allowing external applications (like Claude or other AI assistants) to control browser tabs through JSON-based commands.
 
 ## Architecture
 
@@ -18,12 +18,12 @@ Kapture is a Chrome DevTools Extension that provides remote browser automation c
    - Accepts WebSocket connections from Chrome Extension instances
    - Routes commands to specific tabs based on tabId
    - Tracks connection state and available tabs
-   - Exposes kapturemcp_* tools to MCP clients
+   - Exposes MCP tools to clients (navigate, click, fill, screenshot, etc.)
    
 3. **Test Web Application** (development tool)
    - Vanilla JavaScript single-page application
    - MCP client that connects to the Local MCP Server
-   - UI for testing all kapturemcp_* commands
+   - UI for testing all MCP commands
    - Command history and response visualization
 
 ### System Architecture
@@ -46,8 +46,8 @@ graph TB
         end
     end
     
-    TWA[Claude, ChatGPT, <br>Kapture Test App, ect..]
-    MCP[Kaptive MCP Server<br/>ws://localhost:61822]
+    TWA[Claude, ChatGPT, <br>LLM Browser Bot Test App, etc.]
+    MCP[LLM Browser Bot MCP Server<br/>ws://localhost:61822]
     
     TWA -->|MCP Protocol| MCP
     
@@ -106,7 +106,7 @@ sequenceDiagram
 - **Architecture**: Each browser tab runs its own extension instance with a dedicated WebSocket connection
 - **Lifecycle**: 
   1. User opens Chrome DevTools (F12)
-  2. Navigates to "Kapture" panel
+  2. Navigates to "LLM Browser Bot" panel
   3. Clicks "Connect" button in the panel
   4. WebSocket connection established for that specific tab
 
@@ -125,7 +125,7 @@ sequenceDiagram
 {
   "id": "unique-command-id",
   "type": "command",
-  "command": "kapturemcp_navigate",
+  "command": "navigate",
   "params": {
     "url": "https://example.com",
     "timeout": 30000
@@ -162,11 +162,11 @@ sequenceDiagram
 
 ## Supported Commands
 
-### 1. kapturemcp_navigate
+### 1. navigate
 Navigate to a specified URL.
 ```json
 {
-  "command": "kapturemcp_navigate",
+  "command": "navigate",
   "params": {
     "url": "string (required)",
     "timeout": "number (optional, default: 30000)"
@@ -174,29 +174,29 @@ Navigate to a specified URL.
 }
 ```
 
-### 2. kapturemcp_go_back
+### 2. back
 Navigate back in browser history.
 ```json
 {
-  "command": "kapturemcp_go_back",
+  "command": "back",
   "params": {}
 }
 ```
 
-### 3. kapturemcp_go_forward
+### 3. forward
 Navigate forward in browser history.
 ```json
 {
-  "command": "kapturemcp_go_forward",
+  "command": "forward",
   "params": {}
 }
 ```
 
-### 4. kapturemcp_screenshot
+### 4. screenshot
 Capture a screenshot of the page or specific element.
 ```json
 {
-  "command": "kapturemcp_screenshot",
+  "command": "screenshot",
   "params": {
     "name": "string (required)",
     "selector": "string (optional)",
@@ -207,33 +207,33 @@ Capture a screenshot of the page or specific element.
 ```
 Returns: Base64 encoded image data
 
-### 5. kapturemcp_click
+### 5. click
 Click on a page element.
 ```json
 {
-  "command": "kapturemcp_click",
+  "command": "click",
   "params": {
     "selector": "string (required)"
   }
 }
 ```
 
-### 6. kapturemcp_hover
+### 6. hover
 Hover over a page element.
 ```json
 {
-  "command": "kapturemcp_hover",
+  "command": "hover",
   "params": {
     "selector": "string (required)"
   }
 }
 ```
 
-### 7. kapturemcp_fill
+### 7. fill
 Fill an input field with a value.
 ```json
 {
-  "command": "kapturemcp_fill",
+  "command": "fill",
   "params": {
     "selector": "string (required)",
     "value": "string (required)"
@@ -241,11 +241,11 @@ Fill an input field with a value.
 }
 ```
 
-### 8. kapturemcp_select
+### 8. select
 Select an option from a dropdown.
 ```json
 {
-  "command": "kapturemcp_select",
+  "command": "select",
   "params": {
     "selector": "string (required)",
     "value": "string (required)"
@@ -253,11 +253,11 @@ Select an option from a dropdown.
 }
 ```
 
-### 9. kapturemcp_evaluate
+### 9. evaluate
 Execute JavaScript code in the browser context.
 ```json
 {
-  "command": "kapturemcp_evaluate",
+  "command": "evaluate",
   "params": {
     "code": "string (required)"
   }
@@ -265,11 +265,11 @@ Execute JavaScript code in the browser context.
 ```
 Returns: Serialized result of the JavaScript execution
 
-### 10. kapturemcp_logs
+### 10. console_logs
 Retrieve console.log messages from the browser console.
 ```json
 {
-  "command": "kapturemcp_logs",
+  "command": "console_logs",
   "params": {
     "max": "number (optional, default: 100)"
   }
@@ -280,10 +280,10 @@ Returns: Array of console log entries (most recent first) with timestamp, level,
 ## User Interface
 
 ### DevTools Panel
-The extension adds a "Kapture" panel to Chrome DevTools (F12) with:
+The extension adds a "LLM Browser Bot" panel to Chrome DevTools (F12) with:
 
 ### Phase 1-2 (MVP)
-- DevTools panel named "Kapture"
+- DevTools panel named "LLM Browser Bot"
 - Panel contents:
   - Connection status indicator
   - "Connect" / "Disconnect" button
@@ -319,7 +319,7 @@ The extension adds a "Kapture" panel to Chrome DevTools (F12) with:
   - Host permission for `localhost:61822`
 - **DevTools Integration**:
   - `devtools.html`: Minimal page that loads devtools.js
-  - `devtools.js`: Creates the "Kapture" panel in DevTools
+  - `devtools.js`: Creates the "LLM Browser Bot" panel in DevTools
   - `panel/`: Contains the actual UI for the DevTools panel
 
 ### Command Execution
@@ -358,7 +358,7 @@ stateDiagram-v2
 
 ```mermaid
 timeline
-    title Kapture Development Phases
+    title LLM Browser Bot Development Phases
 
     Phase 1 - Foundation : Basic Chrome Extension structure
                         : Basic MCP Server with WebSocket
@@ -366,12 +366,12 @@ timeline
                         : Connect/Disconnect functionality
                         : Tab registration support
 
-    Phase 2 - Core Commands : Implement kapturemcp_screenshot
-                           : Implement kapturemcp_navigate
-                           : Implement kapturemcp_go_back
-                           : Implement kapturemcp_go_forward
-                           : Implement kapturemcp_click
-                           : Implement kapturemcp_logs
+    Phase 2 - Core Commands : Implement screenshot
+                           : Implement navigate
+                           : Implement back
+                           : Implement forward
+                           : Implement click
+                           : Implement console_logs
                            : Add command timeout handling
 
     Phase 3 - DevTools Testing : Manual command testing interface
@@ -391,10 +391,10 @@ timeline
                            : Command execution UI
                            : Response visualization
 
-    Phase 6 - Advanced Commands : Implement kapturemcp_fill
-                                : Implement kapturemcp_select
-                                : Implement kapturemcp_hover
-                                : Implement kapturemcp_evaluate
+    Phase 6 - Advanced Commands : Implement fill
+                                : Implement select
+                                : Implement hover
+                                : Implement evaluate
 
     Phase 7 - Integration : End-to-end testing
                           : Multi-tab scenarios
@@ -416,12 +416,12 @@ timeline
 - [ ] Basic tab registration/deregistration
 
 ### Phase 2: Core Commands
-- [ ] Implement kapturemcp_screenshot
-- [ ] Implement kapturemcp_navigate
-- [ ] Implement kapturemcp_go_back
-- [ ] Implement kapturemcp_go_forward
-- [ ] Implement kapturemcp_click
-- [ ] Implement kapturemcp_logs
+- [ ] Implement screenshot
+- [ ] Implement navigate
+- [ ] Implement back
+- [ ] Implement forward
+- [ ] Implement click
+- [ ] Implement console_logs
 - [ ] Add command timeout handling
 
 ### Phase 3: DevTools Panel Testing Features
@@ -434,7 +434,7 @@ timeline
 
 ### Phase 4: MCP Protocol Integration
 - [ ] Full MCP server implementation with @modelcontextprotocol/sdk
-- [ ] MCP tool definitions for all kapturemcp_* commands
+- [ ] MCP tool definitions for all * commands
 - [ ] Advanced tab management (heartbeat, metadata tracking)
 - [ ] Command routing optimization
 - [ ] Response handling and error propagation
@@ -449,10 +449,10 @@ timeline
 - [ ] Command history tracking
 
 ### Phase 6: Advanced Commands
-- [ ] Implement kapturemcp_fill
-- [ ] Implement kapturemcp_select
-- [ ] Implement kapturemcp_hover
-- [ ] Implement kapturemcp_evaluate
+- [ ] Implement fill
+- [ ] Implement select
+- [ ] Implement hover
+- [ ] Implement evaluate
 
 ### Phase 7: Integration Testing
 - [ ] End-to-end command flow testing
@@ -484,12 +484,12 @@ timeline
 The Local MCP Server is a Model Context Protocol server that bridges MCP clients (like Claude, test webapp) with Chrome Extension instances running in browser tabs.
 
 ### MCP Tool Definitions
-Each kapturemcp_* command will be exposed as an MCP tool with proper schemas:
+Each * command will be exposed as an MCP tool with proper schemas:
 
 ```typescript
-// Tool: kapturemcp_navigate
+// Tool: navigate
 {
-  name: "kapturemcp_navigate",
+  name: "navigate",
   description: "Navigate browser tab to specified URL",
   inputSchema: {
     type: "object",
@@ -502,9 +502,9 @@ Each kapturemcp_* command will be exposed as an MCP tool with proper schemas:
   }
 }
 
-// Tool: kapturemcp_go_back
+// Tool: back
 {
-  name: "kapturemcp_go_back",
+  name: "back",
   description: "Navigate back in browser history",
   inputSchema: {
     type: "object",
@@ -515,9 +515,9 @@ Each kapturemcp_* command will be exposed as an MCP tool with proper schemas:
   }
 }
 
-// Tool: kapturemcp_go_forward
+// Tool: forward
 {
-  name: "kapturemcp_go_forward",
+  name: "forward",
   description: "Navigate forward in browser history",
   inputSchema: {
     type: "object",
@@ -528,9 +528,9 @@ Each kapturemcp_* command will be exposed as an MCP tool with proper schemas:
   }
 }
 
-// Tool: kapturemcp_list_tabs
+// Tool: list_tabs
 {
-  name: "kapturemcp_list_tabs",
+  name: "list_tabs",
   description: "List all connected browser tabs",
   inputSchema: {
     type: "object",
@@ -539,9 +539,9 @@ Each kapturemcp_* command will be exposed as an MCP tool with proper schemas:
   }
 }
 
-// Tool: kapturemcp_logs
+// Tool: console_logs
 {
-  name: "kapturemcp_logs",
+  name: "console_logs",
   description: "Retrieve console log messages from browser tab (most recent first)",
   inputSchema: {
     type: "object",
@@ -571,7 +571,7 @@ Each kapturemcp_* command will be exposed as an MCP tool with proper schemas:
 
 2. **MCP Client Connection**:
    - Clients connect via stdio (standard MCP)
-   - Can list available tabs via kapturemcp_list_tabs
+   - Can list available tabs via list_tabs
    - Can invoke tools on specific tabs
    - Receives errors if tab is disconnected
 
@@ -632,7 +632,7 @@ A vanilla JavaScript SPA for testing the MCP server and Chrome Extension integra
    - Show tab status (URL, title)
 
 3. **Command Interface**:
-   - Form inputs for each kapturemcp_* command
+   - Form inputs for each * command
    - JSON editor for custom parameters
    - Execute button with loading state
 
@@ -649,7 +649,7 @@ A vanilla JavaScript SPA for testing the MCP server and Chrome Extension integra
 ### UI Layout
 ```
 +----------------------------------+
-|  Kapture Test Client            |
+|  LLM Browser Bot Test Client            |
 +----------------------------------+
 | Connection: [●] Connected        |
 | Server: ws://localhost:61822      |
@@ -658,7 +658,7 @@ A vanilla JavaScript SPA for testing the MCP server and Chrome Extension integra
 | [●] tab1 - Example.com          |
 | [ ] tab2 - Google.com           |
 +----------------------------------+
-| Command: [kapturemcp_navigate ▼] |
+| Command: [navigate ▼] |
 | Parameters:                      |
 | +------------------------------+ |
 | | {                            | |
@@ -742,7 +742,7 @@ kapture/
 ```json
 {
   "manifest_version": 3,
-  "name": "Kapture Browser Automation",
+  "name": "LLM Browser Bot Browser Automation",
   "version": "1.0.0",
   "description": "Remote browser automation via MCP - DevTools Extension",
   "permissions": [
@@ -771,7 +771,7 @@ kapture/
 {
   "name": "kapture-mcp-server",
   "version": "1.0.0",
-  "description": "MCP server for Kapture browser automation",
+  "description": "MCP server for LLM Browser Bot browser automation",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -804,9 +804,9 @@ kapture/
 
 #### devtools.js
 ```javascript
-// Create the Kapture panel in DevTools
+// Create the LLM Browser Bot panel in DevTools
 chrome.devtools.panels.create(
-  "Kapture",                    // Panel title
+  "LLM Browser Bot",                    // Panel title
   "icons/icon16.png",          // Panel icon
   "panel/panel.html",          // Panel HTML page
   function(panel) {

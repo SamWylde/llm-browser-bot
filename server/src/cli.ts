@@ -9,41 +9,38 @@ const __dirname = dirname(__filename);
 
 const command = process.argv[2];
 
-// Default to server if no command provided
-if (!command || command === 'server') {
-  const serverPath = join(__dirname, 'index.js');
-  const args = command === 'server' ? process.argv.slice(3) : process.argv.slice(2);
-  const child = spawn(process.execPath, [serverPath, ...args], {
+function runScript(scriptName: string, args: string[] = []) {
+  const scriptPath = join(__dirname, `${scriptName}.js`);
+  const child = spawn(process.execPath, [scriptPath, ...args], {
     stdio: 'inherit'
   });
 
   child.on('exit', (code) => {
     process.exit(code || 0);
   });
+}
+
+// Default to interactive start if no command provided
+if (!command) {
+  runScript('start-interactive');
+} else if (command === 'server') {
+  runScript('index', process.argv.slice(3));
 } else if (command === 'bridge') {
-  const bridgePath = join(__dirname, 'bridge.js');
-  const child = spawn(process.execPath, [bridgePath, ...process.argv.slice(3)], {
-    stdio: 'inherit'
-  });
-
-  child.on('exit', (code) => {
-    process.exit(code || 0);
-  });
+  runScript('bridge', process.argv.slice(3));
 } else if (command === 'setup') {
-  const setupPath = join(__dirname, 'setup.js');
-  const child = spawn(process.execPath, [setupPath, ...process.argv.slice(3)], {
-    stdio: 'inherit'
-  });
-
-  child.on('exit', (code) => {
-    process.exit(code || 0);
-  });
+  runScript('setup', process.argv.slice(3));
+} else if (command === 'start') {
+  runScript('start-interactive', process.argv.slice(3));
 } else {
   console.error(`Unknown command: ${command}`);
+  console.error('');
   console.error('Usage: llm-browser-bot [command]');
+  console.error('');
   console.error('Commands:');
-  console.error('  server  Run the MCP server (default)');
-  console.error('  bridge  Run the stdio-to-websocket bridge');
-  console.error('  setup   Run the setup wizard');
+  console.error('  (none)  Interactive setup - choose your AI platform (Claude, ChatGPT, etc.)');
+  console.error('  start   Same as above - interactive setup wizard');
+  console.error('  server  Run the MCP server directly (no prompts)');
+  console.error('  bridge  Run the stdio-to-websocket bridge for MCP clients');
+  console.error('  setup   Run the welcome page setup wizard');
   process.exit(1);
 }

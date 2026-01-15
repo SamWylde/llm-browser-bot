@@ -34,7 +34,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.3",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "js-yaml": "^4.1.0",
     "mcp2websocket": "^2.0.0",
     "ws": "^8.18.0",

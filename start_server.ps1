@@ -104,6 +104,7 @@ if (-not $updatePerformed) {
         
         $updatedCount = 0
         $skippedCount = 0
+        $startupScriptUpdated = $false
 
         foreach ($file in $files) {
             # Calculate relative path
@@ -140,8 +141,23 @@ if (-not $updatePerformed) {
             
             if ($shouldCopy) {
                 Write-Host "[Update] Updating: $relativePath"
-                Copy-Item -Path $file.FullName -Destination $destPath -Force
-                $updatedCount++
+                try {
+                    Copy-Item -Path $file.FullName -Destination $destPath -Force
+                    $updatedCount++
+
+                    # Track if startup scripts were updated
+                    if ($relativePath -eq "start_server.ps1" -or $relativePath -eq "update_and_start.bat") {
+                        $startupScriptUpdated = $true
+                    }
+                } catch {
+                    # File might be locked (especially the running script)
+                    Write-Warning "[Update] Could not update $relativePath (file may be in use)"
+                    if ($relativePath -eq "start_server.ps1") {
+                        # Save as .new file for manual update
+                        Copy-Item -Path $file.FullName -Destination "$destPath.new" -Force
+                        $startupScriptUpdated = $true
+                    }
+                }
             }
         }
 
@@ -149,10 +165,28 @@ if (-not $updatePerformed) {
         Set-Content -Path $localVersionFile -Value $latestSha
         
         Write-Host "[Update] Complete. Updated $updatedCount files. Skipped $skippedCount unchanged files."
-        
+
         # Cleanup Backup if successful
-        # Remove-Item $backupDir -Recurse -Force 
+        # Remove-Item $backupDir -Recurse -Force
         Write-Host "[Update] Backup kept at $backupDir"
+
+        # Check if startup script has a pending update
+        if (Test-Path "start_server.ps1.new") {
+            Write-Host ""
+            Write-Host "[Update] ================================================" -ForegroundColor Yellow
+            Write-Host "[Update] STARTUP SCRIPT UPDATE PENDING" -ForegroundColor Yellow
+            Write-Host "[Update] A new version of start_server.ps1 is available." -ForegroundColor Yellow
+            Write-Host "[Update] Please close this window and:" -ForegroundColor Yellow
+            Write-Host "[Update]   1. Delete 'start_server.ps1'" -ForegroundColor Yellow
+            Write-Host "[Update]   2. Rename 'start_server.ps1.new' to 'start_server.ps1'" -ForegroundColor Yellow
+            Write-Host "[Update]   3. Run update_and_start.bat again" -ForegroundColor Yellow
+            Write-Host "[Update] ================================================" -ForegroundColor Yellow
+            Write-Host ""
+            Read-Host "Press Enter to continue with current version..."
+        } elseif ($startupScriptUpdated) {
+            Write-Host ""
+            Write-Host "[Update] Startup scripts were updated. Changes will apply on next run." -ForegroundColor Cyan
+        }
 
     } catch {
         Write-Error "[Update] Update failed! Restoring from backup..."
@@ -198,9 +232,178 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
     Write-Host "`n[Startup] [3/3] Starting server..." -ForegroundColor Green
-    Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
     Write-Host ""
-    cmd /c "npm start"
+
+    # Interactive platform selection
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host "Which AI platform are you using?" -ForegroundColor Cyan
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  1) Claude Desktop / Cline / Continue / Cursor"
+    Write-Host "  2) ChatGPT (requires public URL)"
+    Write-Host "  3) Gemini CLI"
+    Write-Host "  4) Just start the server"
+    Write-Host ""
+
+    $choice = Read-Host "Enter choice [1-4]"
+
+    switch ($choice) {
+        "2" {
+            # ChatGPT setup - needs tunnel
+            Write-Host ""
+            Write-Host "ChatGPT requires a public HTTPS URL." -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "Choose a tunnel provider:" -ForegroundColor Cyan
+            Write-Host "  1) localtunnel (FREE - no signup!)"
+            Write-Host "  2) ngrok (free tier - requires signup)"
+            Write-Host "  3) I'll set up my own tunnel"
+            Write-Host ""
+
+            $tunnelChoice = Read-Host "Enter choice [1-3]"
+
+            # Start server in background
+            Write-Host "`nStarting server in background..." -ForegroundColor Yellow
+            $serverJob = Start-Job -ScriptBlock {
+                Set-Location $using:PWD
+                cmd /c "npm start"
+            }
+            Start-Sleep -Seconds 3
+
+            switch ($tunnelChoice) {
+                "1" {
+                    Write-Host "Starting localtunnel (free, no signup)..." -ForegroundColor Yellow
+                    Write-Host "This may take a moment on first run..." -ForegroundColor Gray
+                    Write-Host ""
+                    cmd /c "npx -y localtunnel --port 61822"
+                }
+                "2" {
+                    # Check if ngrok exists, auto-install if not
+                    if (-not (Get-Command "ngrok" -ErrorAction SilentlyContinue)) {
+                        Write-Host "ngrok is not installed. Attempting auto-install..." -ForegroundColor Yellow
+
+                        $installed = $false
+
+                        # Try winget first (Windows 10/11 built-in)
+                        if (Get-Command "winget" -ErrorAction SilentlyContinue) {
+                            Write-Host "Installing ngrok via winget..." -ForegroundColor Cyan
+                            try {
+                                winget install ngrok.ngrok --accept-package-agreements --accept-source-agreements
+                                if ($LASTEXITCODE -eq 0) { $installed = $true }
+                            } catch {
+                                Write-Warning "winget install failed: $_"
+                            }
+                        }
+
+                        # Try chocolatey as fallback
+                        if (-not $installed -and (Get-Command "choco" -ErrorAction SilentlyContinue)) {
+                            Write-Host "Installing ngrok via chocolatey..." -ForegroundColor Cyan
+                            try {
+                                choco install ngrok -y
+                                if ($LASTEXITCODE -eq 0) { $installed = $true }
+                            } catch {
+                                Write-Warning "choco install failed: $_"
+                            }
+                        }
+
+                        if (-not $installed) {
+                            Write-Host "Could not auto-install ngrok." -ForegroundColor Red
+                            Write-Host ""
+                            Write-Host "Please install manually:" -ForegroundColor Cyan
+                            Write-Host "  1. Visit: https://ngrok.com/download"
+                            Write-Host "  2. Sign up for a free account"
+                            Write-Host "  3. Install and run: ngrok config add-authtoken YOUR_TOKEN"
+                            Write-Host ""
+                            Write-Host "Or use localtunnel (option 1) - no signup required!" -ForegroundColor Green
+                            Read-Host "Press Enter to exit..."
+                            Stop-Job $serverJob
+                            exit 1
+                        }
+
+                        # Refresh PATH to find newly installed ngrok
+                        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+                        Write-Host ""
+                        Write-Host "ngrok installed! You'll need to set up your auth token:" -ForegroundColor Yellow
+                        Write-Host "  1. Sign up at https://ngrok.com (free)" -ForegroundColor Cyan
+                        Write-Host "  2. Copy your auth token from https://dashboard.ngrok.com/get-started/your-authtoken" -ForegroundColor Cyan
+                        Write-Host "  3. Run: ngrok config add-authtoken YOUR_TOKEN" -ForegroundColor Cyan
+                        Write-Host ""
+                        Read-Host "Press Enter after setting up your token..."
+                    }
+
+                    Write-Host "Starting ngrok tunnel..." -ForegroundColor Yellow
+                    cmd /c "ngrok http 61822"
+                }
+                default {
+                    Write-Host ""
+                    Write-Host "Server is running on:" -ForegroundColor Cyan
+                    Write-Host "  Local: http://localhost:61822" -ForegroundColor Green
+                    Write-Host "  WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+                    Write-Host ""
+                    Write-Host "Set up your own tunnel to expose port 61822, then use:" -ForegroundColor Cyan
+                    Write-Host "  https://YOUR-TUNNEL-URL/mcp" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "Press Ctrl+C to stop the server." -ForegroundColor Gray
+                    Wait-Job $serverJob
+                }
+            }
+        }
+        "1" {
+            # Claude Desktop
+            Write-Host ""
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host "Claude Desktop Configuration" -ForegroundColor Cyan
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Add this to your Claude Desktop config file:" -ForegroundColor White
+            Write-Host ""
+            Write-Host "  Windows: %APPDATA%\Claude\claude_desktop_config.json" -ForegroundColor Gray
+            Write-Host "  macOS: ~/Library/Application Support/Claude/claude_desktop_config.json" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host '{
+  "mcpServers": {
+    "llm-browser-bot": {
+      "command": "npx",
+      "args": ["-y", "llm-browser-bot", "bridge"]
+    }
+  }
+}' -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Local Server: http://localhost:61822" -ForegroundColor Green
+            Write-Host "MCP WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
+            Write-Host ""
+            cmd /c "npm start"
+        }
+        "3" {
+            # Gemini CLI
+            Write-Host ""
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host "Gemini CLI Configuration" -ForegroundColor Cyan
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Configure Gemini CLI to use this MCP server:" -ForegroundColor White
+            Write-Host "  MCP WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "See: https://geminicli.com/docs/tools/mcp-server/" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
+            Write-Host ""
+            cmd /c "npm start"
+        }
+        default {
+            # Just start the server
+            Write-Host ""
+            Write-Host "Server: http://localhost:61822" -ForegroundColor Green
+            Write-Host "MCP WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
+            Write-Host ""
+            cmd /c "npm start"
+        }
+    }
+
     if ($LASTEXITCODE -ne 0) { throw "Server exited with error code $LASTEXITCODE" }
 
 } catch {
