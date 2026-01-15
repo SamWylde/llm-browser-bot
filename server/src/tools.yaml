@@ -22,12 +22,14 @@ tools:
     description: >-
       List all connected browser tabs. Each tab includes an 'active' property
       indicating whether it is the currently focused tab in the browser.
+      Use this to find a non-ChatGPT tab for automation if the active tab is the user's chat.
 
   get_active_tab:
     description: >-
       Get the currently active (focused) browser tab. Returns the tab that the
       user is currently viewing. Returns null if no tabs are connected or if
-      the active tab is not connected to the server.
+      the active tab is not connected to the server. If the active tab is
+      ChatGPT, prefer opening a fresh automation tab with new_tab.
 
   tab_detail:
     description: Get detailed information about a specific tab
@@ -317,7 +319,8 @@ tools:
     description: >-
       Opens a new browser tab with the LLM Browser Bot MCP usage documentation page. 
       The page will automatically connect to the LLM Browser Bot server. Returns the 
-      tab ID of the newly opened tab once it connects.
+      tab ID of the newly opened tab once it connects. Use this to avoid
+      automating the user's ChatGPT tab.
     properties:
       browser:
         type: string
