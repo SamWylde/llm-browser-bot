@@ -261,6 +261,7 @@ export class MCPServerManager {
 
     for (const connection of this.connections.values()) {
       if (connection.initialized) {
+        this.touchConnection(connection.id, { lastRequestAt: Date.now() });
         promises.push(
           handler(connection).catch(error => {
             logger.error(`Failed to notify connection ${connection.id}:`, error);
