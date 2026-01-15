@@ -37,6 +37,11 @@ export class ConnectionInfo {
     this.nextRetryIn = nextRetryMs;
   }
 
+  setConnecting() {
+    this.status = ConnectionStatus.CONNECTING;
+    this.connected = false;
+  }
+
   setError(error) {
     this.status = ConnectionStatus.ERROR;
     this.connected = false;

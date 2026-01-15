@@ -62,6 +62,10 @@ export class TabManager {
     // Set up connection
     tabState.connectionInfo.userDisconnected = false;
 
+    // Set status to connecting immediately
+    tabState.connectionInfo.setConnecting();
+    this.notifyListeners(tabId, 'stateChanged', tabState);
+
     await this._createConnection(tabState);
 
     return { ok: true };
