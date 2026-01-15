@@ -256,7 +256,8 @@ function Clone-ChromeProfile {
     $automationDefaultDir = "$automationProfileDir\Default"
 
     # Files to copy (Cookies, Login Data, Local Storage)
-    $filesToCopy = @("Cookies", "Login Data", "Web Data", "Local State")
+    # Exclude "Local State" as it causes conflicts with main browser instance
+    $filesToCopy = @("Cookies", "Login Data", "Web Data")
     $dirsToCopy = @("Local Storage", "Sessions")
 
     if (-not (Test-Path $defaultProfile)) {
@@ -294,9 +295,10 @@ function Clone-ChromeProfile {
 
     # Copy key files
     # Local State lives in User Data root
-    if (Test-Path "$chromeUserData\Local State") {
-        Copy-Item "$chromeUserData\Local State" "$automationProfileDir\Local State" -Force -ErrorAction SilentlyContinue
-    }
+    # SKIP Local State to avoid single-instance conflicts with main browser
+    # if (Test-Path "$chromeUserData\Local State") {
+    #     Copy-Item "$chromeUserData\Local State" "$automationProfileDir\Local State" -Force -ErrorAction SilentlyContinue
+    # }
 
     foreach ($file in $filesToCopy) {
         $src = "$defaultProfile\$file"
