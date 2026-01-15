@@ -326,21 +326,16 @@ async function startServer() {
   await checkIfPortInUse(PORT);
 
   httpServer.listen(PORT, () => {
-    console.log('='.repeat(70));
+    console.log('='.repeat(60));
     console.log('LLM Browser Bot Server Started');
+    console.log('='.repeat(60));
     console.log();
-    console.log('HTTP Endpoints:');
-    console.log(`  Discovery: http://localhost:${PORT}/`);
-    console.log(`  Health: http://localhost:${PORT}/health`);
-    console.log(`  Resources: http://localhost:${PORT}/tabs`);
-    console.log(`  Tab info: http://localhost:${PORT}/tab/{tabId}`);
-    console.log(`  Console: http://localhost:${PORT}/tab/{tabId}/console`);
-    console.log(`  Screenshot: http://localhost:${PORT}/tab/{tabId}/screenshot`);
-    console.log(`  View image: http://localhost:${PORT}/tab/{tabId}/screenshot/view`);
-    console.log(`  Elements: http://localhost:${PORT}/tab/{tabId}/elements`);
-    console.log(`  Point query: http://localhost:${PORT}/tab/{tabId}/elements_from_point`);
-    console.log(`  DOM: http://localhost:${PORT}/tab/{tabId}/dom`);
-    console.log('='.repeat(70));
+    console.log('  MCP Endpoint: http://localhost:' + PORT + '/mcp');
+    console.log();
+    console.log('  For ChatGPT: Use your tunnel URL + /mcp');
+    console.log('  Example: https://your-tunnel.ngrok-free.dev/mcp');
+    console.log();
+    console.log('='.repeat(60));
   });
 }
 
