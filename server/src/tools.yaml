@@ -559,3 +559,56 @@ tools:
         default: 500
         minimum: 10
         maximum: 2000
+
+  # ============ VISUAL FEEDBACK TOOLS ============
+
+  highlight:
+    description: >-
+      Temporarily highlight an element on the page with a colored border/overlay 
+      for visual feedback. The highlight automatically fades after the specified 
+      duration. Useful for showing users which element is being interacted with.
+    required: [tabId]
+    <<: *oneOfSelectorOrXpath
+    properties:
+      tabId: *tabId
+      <<: *selectorAndXpath
+      duration:
+        type: number
+        description: How long to show the highlight in milliseconds (default 2000)
+        default: 2000
+        minimum: 100
+        maximum: 10000
+      color:
+        type: string
+        description: Highlight color (CSS color value, default "red")
+        default: "red"
+      style:
+        type: string
+        description: Highlight style - "border" for outline only, "overlay" for semi-transparent fill
+        default: "border"
+        enum: ["border", "overlay"]
+
+  # ============ IFRAME TOOLS ============
+
+  list_frames:
+    description: >-
+      List all iframes on the current page with their selectors, names, and 
+      src URLs. Use this to discover available frames before switching context.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+
+  switch_to_frame:
+    description: >-
+      Switch the command execution context to a specific iframe. After calling 
+      this, all subsequent commands (click, fill, etc.) will execute within 
+      that iframe until you call switch_to_frame with "main" to return to the 
+      main document. Use list_frames to discover available frames.
+    required: [tabId, frame]
+    properties:
+      tabId: *tabId
+      frame:
+        type: string
+        description: >-
+          Frame identifier - can be a CSS selector for the iframe element, 
+          the iframe's name attribute, or "main" to return to the main document

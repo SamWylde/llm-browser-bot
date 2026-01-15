@@ -217,7 +217,7 @@ if (-not $SkipUpdate) {
                 exit 0
             }
 
-            Start-Process powershell -NoProfile -ExecutionPolicy Bypass -File $currentScript -ArgumentList "-SkipUpdate"
+            Start-Process powershell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$currentScript`"", "-SkipUpdate"
             exit 0
         }
 

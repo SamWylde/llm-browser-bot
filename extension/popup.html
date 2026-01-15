@@ -124,6 +124,44 @@
       color: #81c995;
     }
 
+    .status.error {
+      color: #f28b82;
+    }
+
+    .error .toggle-track {
+      background-color: #5c2b2e;
+      cursor: not-allowed;
+    }
+
+    .reload-section {
+      display: none;
+      background: #5c2b2e;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .reload-btn {
+      background: #f28b82;
+      color: #202124;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .reload-btn:hover {
+      background: #ff9c8f;
+    }
+
+    .reload-text {
+      color: #f28b82;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
     /* Spinner */
     .spinner {
       width: 12px;
@@ -166,6 +204,14 @@
       <div class="footer-hint">
         Open DevTools (F12) <br> Click "LLM Bot" tab
       </div>
+    </div>
+    <div class="reload-section" id="reload-section">
+      <div class="reload-text">
+        Extension was updated.<br>Reload required to work properly.
+      </div>
+      <button class="reload-btn" onclick="chrome.runtime.reload()">
+        Reload Extension
+      </button>
     </div>
   </div>
   <script src="popup.js"></script>

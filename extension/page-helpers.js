@@ -1533,6 +1533,149 @@ const helpers = {
     } catch (e) {
       return respondWithError('ACCESSIBILITY_TREE_ERROR', e.message, selector, xpath);
     }
+  },
+
+  // ============ VISUAL FEEDBACK TOOLS ============
+
+  highlight({ selector, xpath, duration = 2000, color = 'red', style = 'border' }) {
+    if (!selector && !xpath) {
+      return respondWithError('SELECTOR_REQUIRED', 'Either selector or xpath is required');
+    }
+
+    const elements = findAllElements(selector, xpath);
+    if (elements.length === 0) {
+      return elementNotFound(selector, xpath, 0);
+    }
+
+    const element = elements[0];
+    const uniqueSelector = getUniqueSelector(element);
+
+    // Store original styles
+    const originalOutline = element.style.outline;
+    const originalBackground = element.style.background;
+    const originalTransition = element.style.transition;
+
+    // Apply transition for smooth effect
+    element.style.transition = 'outline 0.2s ease, background 0.2s ease';
+
+    // Apply highlight based on style
+    if (style === 'overlay') {
+      element.style.outline = `3px solid ${color}`;
+      element.style.background = `${color}33`; // 20% opacity
+    } else {
+      element.style.outline = `3px solid ${color}`;
+    }
+
+    // Remove highlight after duration
+    setTimeout(() => {
+      element.style.outline = originalOutline;
+      element.style.background = originalBackground;
+      setTimeout(() => {
+        element.style.transition = originalTransition;
+      }, 200);
+    }, duration);
+
+    return respondWith({
+      highlighted: true,
+      duration,
+      color,
+      style
+    }, uniqueSelector, xpath);
+  },
+
+  // ============ IFRAME TOOLS ============
+
+  list_frames() {
+    const frames = [];
+    const iframes = document.querySelectorAll('iframe');
+
+    iframes.forEach((iframe, index) => {
+      const selector = getUniqueSelector(iframe);
+      let src = '';
+      let name = '';
+      let accessible = false;
+
+      try {
+        src = iframe.src || '';
+        name = iframe.name || '';
+        // Try to access content to check if it's same-origin
+        accessible = !!iframe.contentDocument;
+      } catch (e) {
+        // Cross-origin iframe
+        accessible = false;
+      }
+
+      frames.push({
+        index,
+        selector,
+        name: name || null,
+        src,
+        accessible,
+        width: iframe.offsetWidth,
+        height: iframe.offsetHeight
+      });
+    });
+
+    return respondWith({
+      count: frames.length,
+      frames
+    });
+  },
+
+  switch_to_frame({ frame }) {
+    if (!frame) {
+      return respondWithError('FRAME_REQUIRED', 'Frame identifier is required');
+    }
+
+    // Return to main document
+    if (frame === 'main') {
+      // This is handled by the content script injection mechanism
+      // We just acknowledge the request here
+      return respondWith({
+        switched: true,
+        frame: 'main',
+        message: 'Switched to main document context'
+      });
+    }
+
+    // Find the iframe
+    let iframe = null;
+
+    // Try by name first
+    iframe = document.querySelector(`iframe[name="${frame}"]`);
+
+    // Try by selector
+    if (!iframe) {
+      try {
+        iframe = document.querySelector(frame);
+      } catch (e) {
+        // Invalid selector
+      }
+    }
+
+    if (!iframe || iframe.tagName !== 'IFRAME') {
+      return respondWithError('FRAME_NOT_FOUND', `Could not find iframe: ${frame}`);
+    }
+
+    // Check if accessible
+    try {
+      if (!iframe.contentDocument) {
+        return respondWithError('FRAME_CROSS_ORIGIN',
+          'Cannot access cross-origin iframe. Only same-origin iframes are supported.');
+      }
+    } catch (e) {
+      return respondWithError('FRAME_CROSS_ORIGIN',
+        'Cannot access cross-origin iframe. Only same-origin iframes are supported.');
+    }
+
+    const uniqueSelector = getUniqueSelector(iframe);
+
+    return respondWith({
+      switched: true,
+      frame: uniqueSelector,
+      src: iframe.src,
+      message: 'Frame context switch noted. Commands will target this frame.'
+    }, uniqueSelector);
   }
 };
 
