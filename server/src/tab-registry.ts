@@ -7,6 +7,7 @@ export interface TabConnection {
   url?: string;
   title?: string;
   browser?: string;
+  browserInstanceId?: string;
   connectedAt: number;
   lastPing?: number;
   domSize?: number;
@@ -93,6 +94,7 @@ export class TabRegistry {
     url?: string;
     title?: string;
     browser?: string;
+    browserInstanceId?: string;
     domSize?: number;
     fullPageDimensions?: { width: number; height: number };
     viewportDimensions?: { width: number; height: number };
@@ -103,18 +105,19 @@ export class TabRegistry {
     const connection = this.tabs.get(tabId);
     if (connection) {
       const hadChange = (info.url !== undefined && connection.url !== info.url) ||
-                       (info.title !== undefined && connection.title !== info.title) ||
-                       (info.browser !== undefined && connection.browser !== info.browser) ||
-                       (info.domSize !== undefined && connection.domSize !== info.domSize) ||
-                       (info.fullPageDimensions !== undefined) ||
-                       (info.viewportDimensions !== undefined) ||
-                       (info.scrollPosition !== undefined) ||
-                       (info.pageVisibility !== undefined) ||
-                       (info.active !== undefined && connection.active !== info.active);
+        (info.title !== undefined && connection.title !== info.title) ||
+        (info.browser !== undefined && connection.browser !== info.browser) ||
+        (info.domSize !== undefined && connection.domSize !== info.domSize) ||
+        (info.fullPageDimensions !== undefined) ||
+        (info.viewportDimensions !== undefined) ||
+        (info.scrollPosition !== undefined) ||
+        (info.pageVisibility !== undefined) ||
+        (info.active !== undefined && connection.active !== info.active);
 
       if (info.url !== undefined) connection.url = info.url;
       if (info.title !== undefined) connection.title = info.title;
       if (info.browser !== undefined) connection.browser = info.browser;
+      if (info.browserInstanceId !== undefined) connection.browserInstanceId = info.browserInstanceId;
       if (info.domSize !== undefined) connection.domSize = info.domSize;
       if (info.fullPageDimensions !== undefined) connection.fullPageDimensions = info.fullPageDimensions;
       if (info.viewportDimensions !== undefined) connection.viewportDimensions = info.viewportDimensions;

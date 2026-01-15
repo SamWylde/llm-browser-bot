@@ -73,16 +73,63 @@ export class BrowserCommandHandler {
   // ========================================================================
 
   async getAllBrowserTabs(): Promise<any[]> {
-    // We need at least one connected tab to bridge the request to the background script
-    const tabs = this.tabRegistry.getAll();
-    if (tabs.length === 0) {
+    // Group connections by browserInstanceId
+    const instances = new Map<string, string>(); // instanceId -> bridgeTabId
+    const legacyTabs: string[] = [];
+    const allTabs = this.tabRegistry.getAll();
+
+    if (allTabs.length === 0) {
       return [];
     }
 
-    // Pick the first available tab
-    const bridgeTabId = tabs[0].tabId;
+    for (const tab of allTabs) {
+      if (tab.browserInstanceId) {
+        if (!instances.has(tab.browserInstanceId)) {
+          instances.set(tab.browserInstanceId, tab.tabId);
+        }
+      } else {
+        // Fallback for connections without instance ID
+        if (legacyTabs.length === 0) legacyTabs.push(tab.tabId);
+      }
+    }
 
-    return this.executeCommand('getAllTabs', { tabId: bridgeTabId });
+    const promises: Promise<any>[] = [];
+
+    // Query each instance
+    for (const [instanceId, bridgeTabId] of instances) {
+      promises.push(this.queryTabsFromInstance(bridgeTabId, instanceId));
+    }
+
+    // Legacy fallback
+    if (legacyTabs.length > 0 && instances.size === 0) {
+      promises.push(this.queryTabsFromInstance(legacyTabs[0], undefined));
+    }
+
+    const results = await Promise.all(promises);
+    return results.flat();
+  }
+
+  private async queryTabsFromInstance(bridgeTabId: string, instanceId?: string): Promise<any[]> {
+    try {
+      const tabs = await this.executeCommand('getAllTabs', { tabId: bridgeTabId });
+      if (!Array.isArray(tabs)) return [];
+
+      return tabs
+        .filter((tab: any) => {
+          const url = (tab.url || '').toLowerCase();
+          return !url.includes('chatgpt.com') && !url.includes('openai.com');
+        })
+        .map((tab: any) => {
+          // Prefix ID if instanceId is present
+          if (instanceId) {
+            tab.id = `${instanceId}:${tab.id}`;
+          }
+          return tab;
+        });
+    } catch (e) {
+      logger.error(`Failed to query tabs from instance ${instanceId}:`, e);
+      return [];
+    }
   }
 
   async newTab(browser?: string): Promise<any> {

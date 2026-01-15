@@ -13,6 +13,7 @@ interface RegisterMessage extends Message {
   url?: string;
   title?: string;
   browser?: string;
+  instanceId?: string;
   domSize?: number;
   fullPageDimensions?: { width: number; height: number };
   viewportDimensions?: { width: number; height: number };
@@ -231,8 +232,8 @@ export class BrowserWebSocketManager {
    * 5. Triggers connect/update callbacks for notifications
    */
   private handleTabRegistration(ws: WebSocket, message: RegisterMessage): void {
-    const { requestedTabId, url, title, browser, domSize, fullPageDimensions, viewportDimensions,
-            scrollPosition, pageVisibility } = message;
+    const { requestedTabId, url, title, browser, instanceId, domSize, fullPageDimensions, viewportDimensions,
+      scrollPosition, pageVisibility } = message;
 
     // Tab ID is required - extension must provide its Chrome tab ID
     if (!requestedTabId) {
@@ -247,7 +248,10 @@ export class BrowserWebSocketManager {
       return;
     }
 
-    const tabId = requestedTabId;
+    let tabId = requestedTabId;
+    if (message.instanceId) {
+      tabId = `${message.instanceId}:${requestedTabId}`;
+    }
 
     // Check if there's an existing connection with this tab ID
     const existing = this.tabRegistry.get(tabId);
@@ -263,12 +267,13 @@ export class BrowserWebSocketManager {
     this.tabRegistry.registerWithoutCallback(tabId, ws);
 
     // Update tab info if provided
-    if (url || title || browser || domSize || fullPageDimensions || viewportDimensions ||
-        scrollPosition || pageVisibility) {
+    if (url || title || browser || instanceId || domSize || fullPageDimensions || viewportDimensions ||
+      scrollPosition || pageVisibility) {
       this.tabRegistry.updateTabInfo(tabId, {
         url,
         title,
         browser,
+        browserInstanceId: instanceId,
         domSize,
         fullPageDimensions,
         viewportDimensions,

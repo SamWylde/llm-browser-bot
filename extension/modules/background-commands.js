@@ -4,14 +4,14 @@ import { navigate, back, forward, close, reload, show } from './background-navig
 import { screenshot } from './background-screenshot.js';
 import { getLogs } from './background-console.js';
 
-export const getFromContentScript = async (tabId, command, params, ) => {
+export const getFromContentScript = async (tabId, command, params,) => {
   return await chrome.tabs.sendMessage(tabId, { command, params });
 }
 
 // Detect browser type from user agent
 export const detectBrowser = () => {
   const userAgent = navigator.userAgent.toLowerCase();
-  
+
   // Check for Chromium-based browsers that support Chrome extensions
   if (userAgent.includes('edg/')) {
     return 'edge';
@@ -33,9 +33,13 @@ export const detectBrowser = () => {
   }
 };
 
-export const getTabInfo = async(tabId) => await getFromContentScript(tabId, 'getTabInfo');
+export const getTabInfo = async (tabId) => await getFromContentScript(tabId, 'getTabInfo');
 export const getElement = async (tabId, selector, xpath, visible) => {
   return await getFromContentScript(tabId, 'element', { selector, xpath, visible });
+}
+
+export const getAllTabs = async () => {
+  return await chrome.tabs.query({});
 }
 
 export const respondWith = async (tabId, obj, selector, xpath) => {
@@ -49,24 +53,24 @@ export const respondWith = async (tabId, obj, selector, xpath) => {
   };
 }
 export const respondWithError = async (tabId, code, message, selector, xpath) => {
-  return respondWith(tabId,{ error: { code, message } }, selector, xpath);
+  return respondWith(tabId, { error: { code, message } }, selector, xpath);
 }
 export async function attachDebugger(tabId, action) {
   let debuggerAttached = false;
   try {
     // Attach debugger to capture screenshot without making tab active
-    await chrome.debugger.attach({tabId}, '1.3');
+    await chrome.debugger.attach({ tabId }, '1.3');
     debuggerAttached = true;
 
     // Enable the Page domain
-    await chrome.debugger.sendCommand({tabId}, 'Page.enable');
+    await chrome.debugger.sendCommand({ tabId }, 'Page.enable');
 
     return await action();
   }
   finally {
     // Always detach debugger if attached
     try {
-      if (debuggerAttached) await chrome.debugger.detach({tabId: tabId});
+      if (debuggerAttached) await chrome.debugger.detach({ tabId: tabId });
     }
     catch (e) { }
   }
@@ -84,5 +88,6 @@ export const backgroundCommands = {
   hover,
   keypress,
   screenshot,
-  getLogs
+  getLogs,
+  getAllTabs
 }

@@ -5,6 +5,19 @@ export class TabManager {
   constructor() {
     this.tabs = new Map(); // tabId -> TabState
     this.listeners = new Set(); // State change listeners
+    this.instanceId = null;
+    this._initInstanceId();
+  }
+
+  async _initInstanceId() {
+    const result = await chrome.storage.local.get('browserInstanceId');
+    if (result.browserInstanceId) {
+      this.instanceId = result.browserInstanceId;
+    } else {
+      this.instanceId = `browser-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await chrome.storage.local.set({ browserInstanceId: this.instanceId });
+    }
+    console.log('Browser Instance ID:', this.instanceId);
   }
 
   // Tab lifecycle
@@ -113,6 +126,7 @@ export class TabManager {
         type: 'register',
         requestedTabId: tabState.tabId.toString(), // Chrome tab ID
         browser: detectBrowser(), // Add browser type
+        instanceId: this.instanceId,
         ...tabState.pageMetadata
       };
 
@@ -214,7 +228,7 @@ export class TabManager {
     return Math.min(1000 * Math.pow(2, attemptNumber), 60000);
   }
 
-  async _handleCommand(tabState, {command, params, id}) {
+  async _handleCommand(tabState, { command, params, id }) {
     try {
       let result;
       // some need to run with the background context
@@ -223,14 +237,14 @@ export class TabManager {
       }
       // others we execute in the page context
       else {
-        result = await chrome.tabs.sendMessage(tabState.tabId, {command, params});
+        result = await chrome.tabs.sendMessage(tabState.tabId, { command, params });
       }
       // `success: true` means we didn't throw an error. TODO: rename or remove it
-      const response = {id, type: 'response', success: true, result};
+      const response = { id, type: 'response', success: true, result };
       this.sendMessage(tabState.tabId, response);
     }
     catch (error) {
-      const errorResponse = { id, type: 'response', success: false,  error: { message: error.message, code: 'COMMAND_FAILED' }};
+      const errorResponse = { id, type: 'response', success: false, error: { message: error.message, code: 'COMMAND_FAILED' } };
       this.sendMessage(tabState.tabId, errorResponse);
     }
   }
