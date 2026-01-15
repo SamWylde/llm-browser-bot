@@ -104,6 +104,7 @@ if (-not $updatePerformed) {
         
         $updatedCount = 0
         $skippedCount = 0
+        $startupScriptUpdated = $false
 
         foreach ($file in $files) {
             # Calculate relative path
@@ -140,8 +141,23 @@ if (-not $updatePerformed) {
             
             if ($shouldCopy) {
                 Write-Host "[Update] Updating: $relativePath"
-                Copy-Item -Path $file.FullName -Destination $destPath -Force
-                $updatedCount++
+                try {
+                    Copy-Item -Path $file.FullName -Destination $destPath -Force
+                    $updatedCount++
+
+                    # Track if startup scripts were updated
+                    if ($relativePath -eq "start_server.ps1" -or $relativePath -eq "update_and_start.bat") {
+                        $startupScriptUpdated = $true
+                    }
+                } catch {
+                    # File might be locked (especially the running script)
+                    Write-Warning "[Update] Could not update $relativePath (file may be in use)"
+                    if ($relativePath -eq "start_server.ps1") {
+                        # Save as .new file for manual update
+                        Copy-Item -Path $file.FullName -Destination "$destPath.new" -Force
+                        $startupScriptUpdated = $true
+                    }
+                }
             }
         }
 
@@ -149,10 +165,28 @@ if (-not $updatePerformed) {
         Set-Content -Path $localVersionFile -Value $latestSha
         
         Write-Host "[Update] Complete. Updated $updatedCount files. Skipped $skippedCount unchanged files."
-        
+
         # Cleanup Backup if successful
-        # Remove-Item $backupDir -Recurse -Force 
+        # Remove-Item $backupDir -Recurse -Force
         Write-Host "[Update] Backup kept at $backupDir"
+
+        # Check if startup script has a pending update
+        if (Test-Path "start_server.ps1.new") {
+            Write-Host ""
+            Write-Host "[Update] ================================================" -ForegroundColor Yellow
+            Write-Host "[Update] STARTUP SCRIPT UPDATE PENDING" -ForegroundColor Yellow
+            Write-Host "[Update] A new version of start_server.ps1 is available." -ForegroundColor Yellow
+            Write-Host "[Update] Please close this window and:" -ForegroundColor Yellow
+            Write-Host "[Update]   1. Delete 'start_server.ps1'" -ForegroundColor Yellow
+            Write-Host "[Update]   2. Rename 'start_server.ps1.new' to 'start_server.ps1'" -ForegroundColor Yellow
+            Write-Host "[Update]   3. Run update_and_start.bat again" -ForegroundColor Yellow
+            Write-Host "[Update] ================================================" -ForegroundColor Yellow
+            Write-Host ""
+            Read-Host "Press Enter to continue with current version..."
+        } elseif ($startupScriptUpdated) {
+            Write-Host ""
+            Write-Host "[Update] Startup scripts were updated. Changes will apply on next run." -ForegroundColor Cyan
+        }
 
     } catch {
         Write-Error "[Update] Update failed! Restoring from backup..."
@@ -243,23 +277,62 @@ try {
                     cmd /c "npx -y localtunnel --port 61822"
                 }
                 "2" {
-                    # Check if ngrok exists
-                    if (Get-Command "ngrok" -ErrorAction SilentlyContinue) {
-                        Write-Host "Starting ngrok tunnel..." -ForegroundColor Yellow
-                        cmd /c "ngrok http 61822"
-                    } else {
-                        Write-Host "ngrok is not installed." -ForegroundColor Red
+                    # Check if ngrok exists, auto-install if not
+                    if (-not (Get-Command "ngrok" -ErrorAction SilentlyContinue)) {
+                        Write-Host "ngrok is not installed. Attempting auto-install..." -ForegroundColor Yellow
+
+                        $installed = $false
+
+                        # Try winget first (Windows 10/11 built-in)
+                        if (Get-Command "winget" -ErrorAction SilentlyContinue) {
+                            Write-Host "Installing ngrok via winget..." -ForegroundColor Cyan
+                            try {
+                                winget install ngrok.ngrok --accept-package-agreements --accept-source-agreements
+                                if ($LASTEXITCODE -eq 0) { $installed = $true }
+                            } catch {
+                                Write-Warning "winget install failed: $_"
+                            }
+                        }
+
+                        # Try chocolatey as fallback
+                        if (-not $installed -and (Get-Command "choco" -ErrorAction SilentlyContinue)) {
+                            Write-Host "Installing ngrok via chocolatey..." -ForegroundColor Cyan
+                            try {
+                                choco install ngrok -y
+                                if ($LASTEXITCODE -eq 0) { $installed = $true }
+                            } catch {
+                                Write-Warning "choco install failed: $_"
+                            }
+                        }
+
+                        if (-not $installed) {
+                            Write-Host "Could not auto-install ngrok." -ForegroundColor Red
+                            Write-Host ""
+                            Write-Host "Please install manually:" -ForegroundColor Cyan
+                            Write-Host "  1. Visit: https://ngrok.com/download"
+                            Write-Host "  2. Sign up for a free account"
+                            Write-Host "  3. Install and run: ngrok config add-authtoken YOUR_TOKEN"
+                            Write-Host ""
+                            Write-Host "Or use localtunnel (option 1) - no signup required!" -ForegroundColor Green
+                            Read-Host "Press Enter to exit..."
+                            Stop-Job $serverJob
+                            exit 1
+                        }
+
+                        # Refresh PATH to find newly installed ngrok
+                        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
                         Write-Host ""
-                        Write-Host "Install ngrok:" -ForegroundColor Cyan
-                        Write-Host "  1. Visit: https://ngrok.com/download"
-                        Write-Host "  2. Sign up for a free account"
-                        Write-Host "  3. Install and run: ngrok config add-authtoken YOUR_TOKEN"
+                        Write-Host "ngrok installed! You'll need to set up your auth token:" -ForegroundColor Yellow
+                        Write-Host "  1. Sign up at https://ngrok.com (free)" -ForegroundColor Cyan
+                        Write-Host "  2. Copy your auth token from https://dashboard.ngrok.com/get-started/your-authtoken" -ForegroundColor Cyan
+                        Write-Host "  3. Run: ngrok config add-authtoken YOUR_TOKEN" -ForegroundColor Cyan
                         Write-Host ""
-                        Write-Host "Or use localtunnel (option 1) - no signup required!" -ForegroundColor Green
-                        Read-Host "Press Enter to exit..."
-                        Stop-Job $serverJob
-                        exit 1
+                        Read-Host "Press Enter after setting up your token..."
                     }
+
+                    Write-Host "Starting ngrok tunnel..." -ForegroundColor Yellow
+                    cmd /c "ngrok http 61822"
                 }
                 default {
                     Write-Host ""
