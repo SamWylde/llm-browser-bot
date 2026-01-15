@@ -191,6 +191,13 @@ For pages that load content asynchronously:
 - `clear_labels` - Remove labels
 - `accessibility_tree` - Get a11y tree
 
+### Visual Feedback
+- `highlight` - Flash highlight on element for visual feedback
+
+### iframe Support
+- `list_frames` - List all iframes on page
+- `switch_to_frame` - Execute commands within iframe (use "main" to return)
+
 ## Parameter Tips
 
 ### Selectors

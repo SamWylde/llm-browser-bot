@@ -230,6 +230,13 @@ Then ask Claude to interact with web pages:
 - `clear_labels` - Remove label overlays
 - `accessibility_tree` - Get accessibility tree (roles, names, states) like screen readers see
 
+### Visual Feedback
+- `highlight` - Temporarily highlight an element with colored border/overlay for visual feedback
+
+### iframe Support
+- `list_frames` - List all iframes on page with their selectors, names, and URLs
+- `switch_to_frame` - Switch command execution context to an iframe (use "main" to return)
+
 **Note on Selectors**: Tools that accept a `selector` parameter (`click`, `hover`, `fill`, `select`, `keypress`, `screenshot`, `dom`) will only operate on the **first element** that matches the CSS selector. The tool response includes the unique selector of the actual element that was used, which may include an auto-generated ID if the element didn't have one.
 
 **XPath Support**: All tools that accept a `selector` parameter also accept an `xpath` parameter as an alternative. This is particularly useful for:
