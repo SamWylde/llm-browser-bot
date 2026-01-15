@@ -258,6 +258,17 @@ try {
         "2" {
             # ChatGPT setup - needs tunnel
             Write-Host ""
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host "ChatGPT Setup" -ForegroundColor Cyan
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "[PREREQUISITES]" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "  1. Install LLM Browser Bot Chrome extension" -ForegroundColor White
+            Write-Host "     (from chrome://extensions or Chrome Web Store)" -ForegroundColor Gray
+            Write-Host "  2. Open a browser tab and click the extension icon" -ForegroundColor White
+            Write-Host "  3. Toggle the switch to CONNECTED" -ForegroundColor White
+            Write-Host ""
             Write-Host "ChatGPT requires a public HTTPS URL." -ForegroundColor Yellow
             Write-Host ""
             Write-Host "Choose a tunnel provider:" -ForegroundColor Cyan
@@ -278,8 +289,37 @@ try {
 
             switch ($tunnelChoice) {
                 "1" {
-                    Write-Host "Starting localtunnel (free, no signup)..." -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "============================================" -ForegroundColor Cyan
+                    Write-Host "Starting Localtunnel (free, no signup)" -ForegroundColor Cyan
+                    Write-Host "============================================" -ForegroundColor Cyan
+                    Write-Host ""
                     Write-Host "This may take a moment on first run..." -ForegroundColor Gray
+                    Write-Host ""
+                    Write-Host "[IMPORTANT] After the tunnel URL appears:" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "  1. COPY the https://xxxxx.loca.lt URL shown below" -ForegroundColor White
+                    Write-Host "  2. OPEN that URL in your browser (Chrome/Edge)" -ForegroundColor White
+                    Write-Host "  3. CLICK the button on the loca.lt confirmation page" -ForegroundColor White
+                    Write-Host "     (This bypasses their anti-abuse protection)" -ForegroundColor Gray
+                    Write-Host "  4. You should see the LLM Browser Bot welcome page" -ForegroundColor White
+                    Write-Host ""
+                    Write-Host "[SETUP CHATGPT]" -ForegroundColor Cyan
+                    Write-Host ""
+                    Write-Host "  1. Go to ChatGPT Settings > Beta Features > Enable 'MCP Servers'" -ForegroundColor White
+                    Write-Host "  2. Add new MCP server with URL: https://YOUR-URL.loca.lt/mcp" -ForegroundColor White
+                    Write-Host ""
+                    Write-Host "[TROUBLESHOOTING]" -ForegroundColor Cyan
+                    Write-Host ""
+                    Write-Host "  Getting '503 Service Unavailable' errors?" -ForegroundColor Yellow
+                    Write-Host "  -> You MUST visit the tunnel URL in your browser first!" -ForegroundColor White
+                    Write-Host "  -> The loca.lt confirmation page blocks automated requests" -ForegroundColor Gray
+                    Write-Host ""
+                    Write-Host "  Still not working after bypass?" -ForegroundColor Yellow
+                    Write-Host "  -> Restart this script to get a new tunnel URL" -ForegroundColor White
+                    Write-Host "  -> Make sure Chrome extension toggle is ON" -ForegroundColor White
+                    Write-Host ""
+                    Write-Host "============================================" -ForegroundColor Cyan
                     Write-Host ""
                     cmd /c "npx -y localtunnel --port 61822"
                 }
