@@ -1539,17 +1539,29 @@ const helpers = {
 // Mouse position tracking with throttling
 let lastMouseSendTime = 0;
 const MOUSE_THROTTLE_MS = 50; // Throttle to 20 updates per second
+let extensionContextValid = true; // Track if extension is still valid
 
 document.addEventListener('mousemove', (event) => {
+  // Don't try to send if we know context is invalid
+  if (!extensionContextValid) return;
+
   const now = Date.now();
   if (now - lastMouseSendTime < MOUSE_THROTTLE_MS) return;
 
   lastMouseSendTime = now;
-  chrome.runtime.sendMessage({
-    type: 'mousePosition',
-    x: event.clientX,
-    y: event.clientY
-  });
+  try {
+    chrome.runtime.sendMessage({
+      type: 'mousePosition',
+      x: event.clientX,
+      y: event.clientY
+    }).catch(() => {
+      // Extension context invalidated - stop trying
+      extensionContextValid = false;
+    });
+  } catch (e) {
+    // Extension context invalidated - stop trying
+    extensionContextValid = false;
+  }
 });
 
 // Listen for requests from the extension
