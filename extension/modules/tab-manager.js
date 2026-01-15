@@ -1,5 +1,5 @@
 import { TabState } from './tab-state.js';
-import { backgroundCommands, getTabInfo, detectBrowser } from './background-commands.js';
+import { backgroundCommands, getTabInfo, getFallbackTabInfo, detectBrowser } from './background-commands.js';
 
 export class TabManager {
   constructor() {
@@ -57,6 +57,16 @@ export class TabManager {
 
     // Get tab info from content script
     const tabInfo = await getTabInfo(tabId);
+    if (tabInfo?.error) {
+      const fallbackInfo = await getFallbackTabInfo(tabId);
+      tabState.updatePageMetadata({
+        ...fallbackInfo,
+        contentScriptAvailable: false
+      });
+      tabState.connectionInfo.setError(tabInfo.error);
+      this.notifyListeners(tabId, 'stateChanged', tabState);
+      return { ok: false, error: tabInfo.error.message };
+    }
     tabState.updatePageMetadata(tabInfo);
 
     // Set up connection
