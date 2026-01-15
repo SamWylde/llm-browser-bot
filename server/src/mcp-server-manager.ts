@@ -647,7 +647,8 @@ export class MCPServerManager {
     }
 
     if (!req.headers['mcp-protocol-version']) {
-      logger.warn('HTTP request missing mcp-protocol-version header', this.buildRequestContext(req));
+      logger.warn('HTTP request missing mcp-protocol-version header - Shiming it', this.buildRequestContext(req));
+      req.headers['mcp-protocol-version'] = '2024-11-05';
     }
 
     // New session - create new transport and server
