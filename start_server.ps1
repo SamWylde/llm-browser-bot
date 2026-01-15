@@ -393,6 +393,27 @@ function Launch-AutomationBrowser {
     return $true
 }
 # ==============================================================================
+# Helper Function: Kill Process on Port
+# ==============================================================================
+function Kill-ProcessOnPort {
+    param([int]$Port)
+    try {
+        $tcpConnection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($tcpConnection) {
+            $procId = $tcpConnection.OwningProcess
+            # Don't kill if it's PID 0 (System Idle) or 4 (System) - though unlikely to bind 61822
+            if ($procId -gt 4) {
+                Write-Host "Port $Port is in use by PID $procId. Killing process to free port..." -ForegroundColor Yellow
+                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 1
+            }
+        }
+    } catch {
+        # Ignore errors if Get-NetTCPConnection fails or process already gone
+    }
+}
+
+# ==============================================================================
 # 2. Install, Build, and Start
 # ==============================================================================
 
@@ -427,6 +448,9 @@ try {
     Write-Host "  3) Gemini CLI"
     Write-Host "  4) Just start the server"
     Write-Host ""
+    
+    # Ensure port is free before starting anything
+    Kill-ProcessOnPort 61822
 
     $choice = Read-Host "Enter choice [1-4]"
 

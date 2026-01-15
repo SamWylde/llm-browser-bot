@@ -31,12 +31,32 @@ async function getPortInfo(port: number): Promise<{ inUse: boolean; pid?: string
         command: parts[0]
       };
     } else if (platform === 'win32') {
-      const parts = stdout.trim().split(/\s+/);
-      const pid = parts[parts.length - 1];
-      return {
-        inUse: true,
-        pid: pid
-      };
+      // Find the line with LISTENING state
+      const lines = stdout.trim().split('\n');
+      const listenLine = lines.find(l => l.includes('LISTENING'));
+
+      if (listenLine) {
+        const parts = listenLine.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+
+        // Try to get process name
+        let command = 'unknown';
+        try {
+          const { stdout: taskOut } = await exec(`tasklist /FI "PID eq ${pid}" /FO CSV /NH`);
+          // Output format: "node.exe","1234","Console","1","12,345 K"
+          if (taskOut && taskOut.includes('","')) {
+            command = taskOut.split('","')[0].replace(/"/g, '');
+          }
+        } catch (e) {
+          // Ignore error, keep unknown
+        }
+
+        return {
+          inUse: true,
+          pid: pid,
+          command: command
+        };
+      }
     }
   }
 
