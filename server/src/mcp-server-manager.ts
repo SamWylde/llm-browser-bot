@@ -1,5 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { WebSocketTransport } from './websocket-transport.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { IncomingMessage, ServerResponse } from 'http';
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
@@ -51,7 +53,8 @@ const SERVER_INFO = {
 interface MCPConnection {
   id: string;
   server: Server;
-  type: 'websocket';
+  type: 'websocket' | 'sse';
+  transport?: SSEServerTransport;
   clientInfo?: { name?: string; version?: string };
   initialized: boolean;
 }
@@ -325,6 +328,88 @@ export class MCPServerManager {
       logger.log(`MCP WebSocket client disconnected (${connectionId})`);
       this.connections.delete(connectionId);
     });
+  }
+
+  async connectSSE(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const connectionId = `sse-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    logger.log(`New SSE connection request: ${connectionId}`);
+
+    const transport = new SSEServerTransport('/messages', res);
+    const server = this.createMCPServer(connectionId);
+
+    this.connections.set(connectionId, {
+      id: connectionId,
+      server,
+      type: 'sse',
+      transport,
+      initialized: false
+    });
+
+    try {
+      await server.connect(transport);
+
+      // Clean up on close if possible (SSE is harder to detect disconnects without keepalive failures)
+      // handling close is mostly done via the transport logic or if write fails
+      req.on('close', () => {
+        logger.log(`SSE client disconnected (${connectionId})`);
+        this.connections.delete(connectionId);
+      });
+
+    } catch (error) {
+      logger.error(`Failed to connect MCP SSE server (${connectionId}):`, error);
+      this.connections.delete(connectionId);
+      res.end(); // Ensure response is closed if error
+    }
+  }
+
+  async handleSSEMessage(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // For SSE, the transport handles the POST messages
+    // The request should contain a sessionId query param or we need to map requests to the right transport
+    // The SDK's SSEServerTransport.handlePostMessage handles this if we pass it the request.
+    // BUT, we need to find the RIGHT transport.
+    // The standard MCP SSE pattern usually involves the client sending a sessionId in the query param
+    // however, SSEServerTransport implementation details vary.
+    // Checking SDK source: handlePostMessage(req, res, message?)
+    // If the transport instance is known (e.g. from the session ID), we call handlePostMessage on it.
+
+    // In strict MCP SSE, the GET /sse response includes a session ID (often in the URL or body, but SSE establishes it)
+    // Actually, distinct from the initial connection, the client sends POST requests.
+    // We need to parse the sessionId from the query string ?sessionId=...
+
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const sessionId = url.searchParams.get('sessionId');
+
+    if (!sessionId) {
+      // If no session ID, we can't route it. 
+      // Note: The SDK's SSEServerTransport generates a session ID and sends it in the 'endpoint' event or similar?
+      // Let's look at how we initialized SSEServerTransport.
+      // new SSEServerTransport('/messages', res)
+      // It likely expects POSTs to /messages?sessionId=...
+      logger.error('Received message without sessionId');
+      res.writeHead(400);
+      res.end('Missing sessionId');
+      return;
+    }
+
+    // Find the connection with this transport session ID
+    // Wait, the transport maintains the session ID. We need to iterate or lookup.
+    let targetConnection: MCPConnection | undefined;
+    for (const conn of this.connections.values()) {
+      if (conn.type === 'sse' && conn.transport && conn.transport.sessionId === sessionId) {
+        targetConnection = conn;
+        break;
+      }
+    }
+
+    if (!targetConnection || !targetConnection.transport) {
+      logger.error(`Session not found: ${sessionId}`);
+      res.writeHead(404);
+      res.end('Session not found');
+      return;
+    }
+
+    await targetConnection.transport.handlePostMessage(req, res);
   }
 
   // Used to show the connected MCP clients at http://localhost:61822/

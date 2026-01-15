@@ -86,10 +86,29 @@ const httpServer = createServer(async (req, res) => {
 
   // Root endpoint - Server discovery and status
   if (req.url === '/' && req.method === 'GET') {
+    // Check for SSE request (Accept header)
+    const acceptHeader = req.headers['accept'] || '';
+    if (acceptHeader.includes('text/event-stream')) {
+      await mcpServerManager.connectSSE(req, res);
+      return;
+    }
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
 
     const connections = mcpServerManager.getConnectionInfo();
     res.end(JSON.stringify(connections));
+    return;
+  }
+
+  // SSE Endpoint
+  if (req.url === '/sse' && req.method === 'GET') {
+    await mcpServerManager.connectSSE(req, res);
+    return;
+  }
+
+  // SSE Messages Endpoint
+  if (req.url && req.url.startsWith('/messages') && req.method === 'POST') {
+    await mcpServerManager.handleSSEMessage(req, res);
     return;
   }
 
