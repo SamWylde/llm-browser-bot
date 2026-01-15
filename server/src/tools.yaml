@@ -23,16 +23,13 @@ tools:
       List all connected browser tabs. Each tab includes an 'active' property
       indicating whether it is the currently focused tab in the browser.
       Use this to find a non-ChatGPT tab for automation if the active tab is the user's chat.
-      When the active tab is ChatGPT, a suggestedTabId may be included to point
-      at a safer automation tab.
 
   get_active_tab:
     description: >-
       Get the currently active (focused) browser tab. Returns the tab that the
       user is currently viewing. Returns null if no tabs are connected or if
       the active tab is not connected to the server. If the active tab is
-      ChatGPT, prefer opening a fresh automation tab with new_tab. A
-      suggestedTabId may be included when a safer tab is already connected.
+      ChatGPT, prefer opening a fresh automation tab with new_tab.
 
   tab_detail:
     description: Get detailed information about a specific tab
