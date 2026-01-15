@@ -14,6 +14,7 @@ KEY RULES:
 - All tool names use underscores: list_tabs, get_active_tab, elements_from_point
 - Tools operate on FIRST matching element only - use specific selectors
 - Always use tabId from get_active_tab or list_tabs, never guess
+- Never automate the ChatGPT tab; open a fresh tab with new_tab for browsing tasks
 
 COMMON WORKFLOW:
 1. get_active_tab → get tabId
@@ -72,7 +73,12 @@ Step 2: Extract tabId from response
 Step 3: Use tabId in all subsequent commands
 ```
 
-### 2. Use CSS Selectors or XPath (not both)
+### 2. Protect the User's ChatGPT Tab
+- If the active tab is ChatGPT (chat.openai.com or chatgpt.com), do NOT navigate or interact with it.
+- Use `new_tab` to open a fresh automation tab and operate only on that new tabId.
+- If you must use an existing tab, pick a non-ChatGPT tab from `list_tabs`.
+
+### 3. Use CSS Selectors or XPath (not both)
 ```json
 // CSS selector (preferred for simple cases)
 { "tabId": "abc123", "selector": "#submit-button" }

@@ -3,6 +3,26 @@ import { TabRegistry } from './tab-registry.js';
 import { allTools } from './yaml-loader.js';
 import { formatTabDetail } from './tab-utils.js';
 
+const PROTECTED_HOSTS = new Set([
+  'chat.openai.com',
+  'chatgpt.com'
+]);
+
+function isProtectedChatTab(url?: string): boolean {
+  if (!url) return false;
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    return PROTECTED_HOSTS.has(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function getProtectedTabHint(url?: string): string | null {
+  if (!isProtectedChatTab(url)) return null;
+  return 'Active tab appears to be ChatGPT. To avoid hijacking the user chat, open a fresh automation tab with new_tab and use that tabId instead.';
+}
+
 export class ToolHandler {
   constructor(
     private commandHandler: BrowserCommandHandler,
@@ -52,6 +72,11 @@ export class ToolHandler {
                 connected: connectedTabIds.has(t.id.toString())
               }));
               result = { tabs: allTabs };
+              const activeTab = allTabs.find((tab: any) => tab.active);
+              const protectedHint = getProtectedTabHint(activeTab?.url);
+              if (protectedHint) {
+                result.hint = protectedHint;
+              }
               if (connectedTabIds.size === 0) {
                 result.hint = 'No tabs are currently connected to the server.';
               }
@@ -75,6 +100,13 @@ export class ToolHandler {
           if (result.tabs.length === 0) {
             result.hint = 'There currently are no tabs connected. Use the new_tab tool to create one!';
           }
+          if (!result.hint) {
+            const activeTab = result.tabs.find((tab: any) => tab.active);
+            const protectedHint = getProtectedTabHint(activeTab?.url);
+            if (protectedHint) {
+              result.hint = protectedHint;
+            }
+          }
           break;
         case 'tab_detail':
           const tab = this.tabRegistry.get(validatedArgs.tabId);
@@ -86,7 +118,10 @@ export class ToolHandler {
         case 'get_active_tab':
           const activeTab = this.tabRegistry.getActiveTab();
           if (activeTab) {
-            result = formatTabDetail(activeTab);
+            const protectedHint = getProtectedTabHint(activeTab.url);
+            result = protectedHint
+              ? { ...formatTabDetail(activeTab), hint: protectedHint }
+              : formatTabDetail(activeTab);
           } else {
             result = {
               tab: null,
