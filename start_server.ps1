@@ -244,6 +244,89 @@ if (-not $SkipUpdate) {
 }
 
 # ==============================================================================
+# Helper Function: Launch Automation Browser
+# ==============================================================================
+
+function Launch-AutomationBrowser {
+    param(
+        [string]$ExtensionPath,
+        [string]$StartUrl = "http://localhost:61822/welcome"
+    )
+
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host "Launching Automation Browser" -ForegroundColor Cyan
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host ""
+
+    # Find Chrome installation
+    $chromePaths = @(
+        "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
+        "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+        "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
+    )
+
+    $chromePath = $null
+    foreach ($path in $chromePaths) {
+        if (Test-Path $path) {
+            $chromePath = $path
+            break
+        }
+    }
+
+    if (-not $chromePath) {
+        Write-Warning "Chrome not found in standard locations."
+        Write-Host "Please ensure Chrome is installed and open a browser tab manually." -ForegroundColor Yellow
+        return $false
+    }
+
+    Write-Host "  Found Chrome: $chromePath" -ForegroundColor Gray
+
+    # Resolve extension path
+    $extensionFullPath = Resolve-Path $ExtensionPath -ErrorAction SilentlyContinue
+    if (-not $extensionFullPath) {
+        Write-Warning "Extension path not found: $ExtensionPath"
+        return $false
+    }
+
+    Write-Host "  Extension: $extensionFullPath" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "[IMPORTANT]" -ForegroundColor Yellow
+    Write-Host "  A Chrome window will open for AUTOMATION." -ForegroundColor White
+    Write-Host "  This uses your existing Chrome profile (cookies/logins shared)." -ForegroundColor Gray
+    Write-Host "  You can continue using ChatGPT in your main browser." -ForegroundColor White
+    Write-Host ""
+
+    # Launch Chrome with extension
+    # --new-window: Opens in new window
+    # --load-extension: Loads the unpacked extension
+    # Note: Chrome won't load extensions if another instance with same profile is running
+    # So we use --new-window to at least open a new window
+    
+    $chromeArgs = @(
+        "--new-window",
+        "--load-extension=`"$extensionFullPath`"",
+        $StartUrl
+    )
+
+    try {
+        Start-Process -FilePath $chromePath -ArgumentList $chromeArgs
+        Write-Host "  Chrome automation window launched!" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "  IN THE NEW CHROME WINDOW:" -ForegroundColor Yellow
+        Write-Host "  1. Click the LLM Browser Bot extension icon" -ForegroundColor White
+        Write-Host "  2. Toggle it to CONNECTED" -ForegroundColor White
+        Write-Host "  3. ChatGPT can now control this browser!" -ForegroundColor White
+        Write-Host ""
+        return $true
+    } catch {
+        Write-Warning "Failed to launch Chrome: $_"
+        return $false
+    }
+}
+
+
+# ==============================================================================
 # 2. Install, Build, and Start
 # ==============================================================================
 
@@ -289,12 +372,12 @@ try {
             Write-Host "ChatGPT Setup" -ForegroundColor Cyan
             Write-Host "============================================" -ForegroundColor Cyan
             Write-Host ""
-            Write-Host "[PREREQUISITES]" -ForegroundColor Yellow
+            Write-Host "[HOW IT WORKS]" -ForegroundColor Yellow
             Write-Host ""
-            Write-Host "  1. Install LLM Browser Bot Chrome extension" -ForegroundColor White
-            Write-Host "     (from chrome://extensions or Chrome Web Store)" -ForegroundColor Gray
-            Write-Host "  2. Open a browser tab and click the extension icon" -ForegroundColor White
-            Write-Host "  3. Toggle the switch to CONNECTED" -ForegroundColor White
+            Write-Host "  1. Server starts in a separate window" -ForegroundColor White
+            Write-Host "  2. Automation browser launches with extension loaded" -ForegroundColor White
+            Write-Host "  3. Tunnel exposes the server to ChatGPT" -ForegroundColor White
+            Write-Host "  4. You can use ChatGPT while automation runs separately!" -ForegroundColor White
             Write-Host ""
             Write-Host "ChatGPT requires a public HTTPS URL." -ForegroundColor Yellow
             Write-Host ""
@@ -328,6 +411,21 @@ Read-Host 'Press Enter to close...'
 
             Start-Process powershell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $serverScriptPath
             Start-Sleep -Seconds 4
+
+            # Offer to launch automation browser
+            Write-Host ""
+            Write-Host "Would you like to launch a Chrome window for automation?" -ForegroundColor Cyan
+            Write-Host "(This window will be controlled by ChatGPT while you use your main browser)" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "  Y) Yes - Launch automation browser (recommended)"
+            Write-Host "  N) No - I'll open a tab myself"
+            Write-Host ""
+            $launchBrowser = Read-Host "Enter choice [Y/N]"
+
+            if ($launchBrowser -eq 'Y' -or $launchBrowser -eq 'y' -or $launchBrowser -eq '') {
+                $extensionDir = Join-Path $scriptRoot "extension"
+                Launch-AutomationBrowser -ExtensionPath $extensionDir
+            }
 
             switch ($tunnelChoice) {
                 "1" {
