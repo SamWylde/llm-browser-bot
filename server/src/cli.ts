@@ -31,6 +31,8 @@ if (!command) {
   runScript('setup', process.argv.slice(3));
 } else if (command === 'start') {
   runScript('start-interactive', process.argv.slice(3));
+} else if (command === 'validate-chatgpt') {
+  runScript('validate-chatgpt', process.argv.slice(3));
 } else {
   console.error(`Unknown command: ${command}`);
   console.error('');
@@ -42,5 +44,6 @@ if (!command) {
   console.error('  server  Run the MCP server directly (no prompts)');
   console.error('  bridge  Run the stdio-to-websocket bridge for MCP clients');
   console.error('  setup   Run the welcome page setup wizard');
+  console.error('  validate-chatgpt  Validate a public HTTPS URL for ChatGPT MCP');
   process.exit(1);
 }
