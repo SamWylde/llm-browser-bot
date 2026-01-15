@@ -279,13 +279,28 @@ try {
 
             $tunnelChoice = Read-Host "Enter choice [1-3]"
 
-            # Start server in background
-            Write-Host "`nStarting server in background..." -ForegroundColor Yellow
-            $serverJob = Start-Job -ScriptBlock {
-                Set-Location $using:PWD
-                cmd /c "npm start"
-            }
-            Start-Sleep -Seconds 3
+            # Start server in a VISIBLE separate terminal window
+            Write-Host "`nStarting server in separate window..." -ForegroundColor Yellow
+            Write-Host "(Keep that window open - it shows server logs and errors)" -ForegroundColor Gray
+            Write-Host ""
+            
+            $serverScriptPath = Join-Path $PWD "start_server_only.ps1"
+            # Create a simple script to run the server
+            @"
+Set-Location '$PWD'
+Write-Host '============================================' -ForegroundColor Cyan
+Write-Host 'LLM Browser Bot Server' -ForegroundColor Cyan
+Write-Host '============================================' -ForegroundColor Cyan
+Write-Host ''
+Write-Host 'Server running on http://localhost:61822' -ForegroundColor Green
+Write-Host 'Keep this window open!' -ForegroundColor Yellow
+Write-Host ''
+npm start
+Read-Host 'Press Enter to close...'
+"@ | Set-Content -Path $serverScriptPath -Encoding UTF8
+
+            Start-Process powershell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $serverScriptPath
+            Start-Sleep -Seconds 4
 
             switch ($tunnelChoice) {
                 "1" {
@@ -362,7 +377,6 @@ try {
                             Write-Host ""
                             Write-Host "Or use localtunnel (option 1) - no signup required!" -ForegroundColor Green
                             Read-Host "Press Enter to exit..."
-                            Stop-Job $serverJob
                             exit 1
                         }
 
@@ -378,7 +392,26 @@ try {
                         Read-Host "Press Enter after setting up your token..."
                     }
 
-                    Write-Host "Starting ngrok tunnel..." -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "============================================" -ForegroundColor Cyan
+                    Write-Host "Starting ngrok tunnel" -ForegroundColor Cyan
+                    Write-Host "============================================" -ForegroundColor Cyan
+                    Write-Host ""
+                    Write-Host "[SETUP CHATGPT]" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "  1. Copy the 'Forwarding' URL from ngrok (https://xxxx.ngrok-free.dev)" -ForegroundColor White
+                    Write-Host "  2. In ChatGPT: Settings > Connectors > Add Custom MCP Server" -ForegroundColor White
+                    Write-Host "  3. Set URL to: https://YOUR-URL.ngrok-free.dev/mcp" -ForegroundColor White
+                    Write-Host "     (Make sure it ends with /mcp !)" -ForegroundColor Gray
+                    Write-Host ""
+                    Write-Host "[TROUBLESHOOTING 502 Bad Gateway]" -ForegroundColor Cyan
+                    Write-Host ""
+                    Write-Host "  1. Check the SERVER window is still running (no errors)" -ForegroundColor White
+                    Write-Host "  2. Make sure Chrome extension toggle is ON (connected)" -ForegroundColor White
+                    Write-Host "  3. The URL must end with /mcp (not /sse)" -ForegroundColor White
+                    Write-Host ""
+                    Write-Host "============================================" -ForegroundColor Cyan
+                    Write-Host ""
                     cmd /c "ngrok http 61822"
                 }
                 default {
@@ -391,7 +424,7 @@ try {
                     Write-Host "  https://YOUR-TUNNEL-URL/mcp" -ForegroundColor Yellow
                     Write-Host ""
                     Write-Host "Press Ctrl+C to stop the server." -ForegroundColor Gray
-                    Wait-Job $serverJob
+                    Read-Host "Press Enter to exit..."
                 }
             }
         }
