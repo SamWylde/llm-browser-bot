@@ -201,33 +201,51 @@ The server auto-detects if already running - no conflicts!
 
 ChatGPT now supports MCP through Developer Mode (available to Pro, Plus, Business, Enterprise, and Education accounts).
 
-> **Important:** ChatGPT requires a **public HTTPS URL** - it cannot connect to `localhost` directly. You need to use a tunneling service like ngrok.
+> **Important:** ChatGPT requires a **public HTTPS URL** - it cannot connect to `localhost` directly.
 
-**Setup:**
+### Easy Setup (Recommended)
 
-1. Start the LLM Browser Bot server:
+Use the interactive setup wizard - it handles everything automatically:
+
 ```bash
 npx llm-browser-bot
 ```
 
-2. Install and run ngrok to create a public tunnel:
+Select **ChatGPT** and then choose a tunnel provider:
+- **localtunnel** - FREE, no signup required!
+- **ngrok** - free tier available, requires signup
+
+The wizard will start the server, create a tunnel, and display the URL to use.
+
+### Manual Setup
+
+If you prefer manual setup:
+
+**Option A: localtunnel (FREE - no signup)**
 ```bash
-# Install ngrok from https://ngrok.com/download
+# Terminal 1: Start the server
+npx llm-browser-bot server
+
+# Terminal 2: Start localtunnel
+npx localtunnel --port 61822
+```
+
+**Option B: ngrok (free tier - requires signup)**
+```bash
+# Terminal 1: Start the server
+npx llm-browser-bot server
+
+# Terminal 2: Start ngrok (install from https://ngrok.com/download)
 ngrok http 61822
 ```
 
-3. Copy the HTTPS URL from ngrok output (e.g., `https://abc123.ngrok.app`)
+### Connect to ChatGPT
 
-4. In ChatGPT:
+1. Copy the HTTPS URL from your tunnel (e.g., `https://abc123.loca.lt` or `https://abc123.ngrok.app`)
+2. In ChatGPT:
    - Enable Developer Mode (Settings → Developer Mode)
    - Add a new MCP connector
-   - Enter the URL: `https://YOUR-NGROK-URL.ngrok.app/mcp`
-
-**Example ngrok output:**
-```
-Forwarding  https://abc123.ngrok.app -> http://localhost:61822
-```
-Use: `https://abc123.ngrok.app/mcp` as your ChatGPT connector URL.
+   - Enter the URL: `https://YOUR-TUNNEL-URL/mcp`
 
 For detailed instructions, see: [OpenAI Developer Mode Documentation](https://platform.openai.com/docs/guides/developer-mode)
 
