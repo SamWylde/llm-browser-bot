@@ -201,14 +201,51 @@ The server auto-detects if already running - no conflicts!
 
 ChatGPT now supports MCP through Developer Mode (available to Pro, Plus, Business, Enterprise, and Education accounts).
 
-**Setup:**
-1. Start the LLM Browser Bot server manually:
+> **Important:** ChatGPT requires a **public HTTPS URL** - it cannot connect to `localhost` directly.
+
+### Easy Setup (Recommended)
+
+Use the interactive setup wizard - it handles everything automatically:
+
 ```bash
 npx llm-browser-bot
 ```
 
-2. In ChatGPT, enable Developer Mode
-3. Add a custom MCP connector pointing to: `ws://localhost:61822/mcp`
+Select **ChatGPT** and then choose a tunnel provider:
+- **localtunnel** - FREE, no signup required!
+- **ngrok** - free tier available, requires signup
+
+The wizard will start the server, create a tunnel, and display the URL to use.
+
+### Manual Setup
+
+If you prefer manual setup:
+
+**Option A: localtunnel (FREE - no signup)**
+```bash
+# Terminal 1: Start the server
+npx llm-browser-bot server
+
+# Terminal 2: Start localtunnel
+npx localtunnel --port 61822
+```
+
+**Option B: ngrok (free tier - requires signup)**
+```bash
+# Terminal 1: Start the server
+npx llm-browser-bot server
+
+# Terminal 2: Start ngrok (install from https://ngrok.com/download)
+ngrok http 61822
+```
+
+### Connect to ChatGPT
+
+1. Copy the HTTPS URL from your tunnel (e.g., `https://abc123.loca.lt` or `https://abc123.ngrok.app`)
+2. In ChatGPT:
+   - Enable Developer Mode (Settings → Developer Mode)
+   - Add a new MCP connector
+   - Enter the URL: `https://YOUR-TUNNEL-URL/mcp`
 
 For detailed instructions, see: [OpenAI Developer Mode Documentation](https://platform.openai.com/docs/guides/developer-mode)
 
