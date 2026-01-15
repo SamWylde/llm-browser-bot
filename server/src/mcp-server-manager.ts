@@ -730,14 +730,14 @@ export class MCPServerManager {
       if (statusCode >= 400) {
         logger.error(`Debug: Caught ${statusCode} response for ${connectionId}`);
       }
-      return originalWriteHead.apply(res, [statusCode, ...args]);
+      return originalWriteHead.apply(res, [statusCode, ...args] as any);
     };
 
     res.end = function (chunk: any, ...args: any[]) {
       if (chunk && chunk.toString().includes('error')) {
         logger.error(`Debug: Response body for ${connectionId}: ${chunk.toString()}`);
       }
-      return originalEnd.apply(res, [chunk, ...args]);
+      return originalEnd.apply(res, [chunk, ...args] as any);
     };
 
     try {
