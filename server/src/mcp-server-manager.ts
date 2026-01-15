@@ -53,6 +53,22 @@ const SERVER_INFO = {
   version: SERVER_VERSION
 };
 
+interface MCPConnectionMetrics {
+  createdAt: number;
+  lastActivityAt: number;
+  lastRequestAt?: number;
+  protocolVersion?: string;
+  clientInfoUpdatedAt?: number;
+}
+
+interface HttpSessionInfo {
+  sessionId: string;
+  connectionId: string;
+  createdAt: number;
+  lastActivityAt: number;
+  timeoutMs: number;
+}
+
 interface MCPConnection {
   id: string;
   server: Server;
@@ -60,12 +76,16 @@ interface MCPConnection {
   transport?: SSEServerTransport | StreamableHTTPServerTransport;
   clientInfo?: { name?: string; version?: string };
   initialized: boolean;
+  metrics: MCPConnectionMetrics;
 }
 
 export class MCPServerManager {
   private connections: Map<string, MCPConnection> = new Map();
   private dynamicTabResources: Map<string, any> = new Map();
-  private httpSessions: Map<string, MCPConnection> = new Map();
+  private httpSessions: Map<string, HttpSessionInfo> = new Map();
+  private sseSessions: Map<string, MCPConnection> = new Map();
+  private httpSessionCleanupTimer?: NodeJS.Timeout;
+  private readonly defaultHttpSessionTimeoutMs = 30 * 60 * 1000;
 
   constructor(
     private browserWebSocketManager: BrowserWebSocketManager,
@@ -76,6 +96,10 @@ export class MCPServerManager {
   ) {
     // Set up tab callbacks
     this.setupTabCallbacks();
+    this.httpSessionCleanupTimer = setInterval(() => {
+      this.cleanupHttpSessions();
+    }, 60_000);
+    this.httpSessionCleanupTimer.unref?.();
   }
 
   private setupTabCallbacks(): void {
@@ -172,11 +196,79 @@ export class MCPServerManager {
     }
   }
 
+  private touchConnection(connectionId: string, updates: Partial<MCPConnectionMetrics> = {}): void {
+    const connection = this.connections.get(connectionId);
+    if (!connection) {
+      return;
+    }
+    connection.metrics = {
+      ...connection.metrics,
+      ...updates,
+      lastActivityAt: updates.lastActivityAt ?? Date.now()
+    };
+  }
+
+  private parseSessionTimeout(headerValue: string | undefined): number | undefined {
+    if (!headerValue) {
+      return undefined;
+    }
+
+    const parsed = Number(headerValue);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return undefined;
+    }
+
+    if (parsed < 1000) {
+      return parsed * 1000;
+    }
+
+    return parsed;
+  }
+
+  private cleanupHttpSessions(): void {
+    const now = Date.now();
+    for (const [sessionId, info] of this.httpSessions) {
+      const connection = this.connections.get(info.connectionId);
+      if (connection?.type === 'http') {
+        if (connection.metrics.lastActivityAt > info.lastActivityAt) {
+          info.lastActivityAt = connection.metrics.lastActivityAt;
+        }
+      }
+
+      if (now - info.lastActivityAt > info.timeoutMs) {
+        logger.warn('HTTP session expired', {
+          sessionId,
+          connectionId: info.connectionId,
+          idleMs: now - info.lastActivityAt,
+          timeoutMs: info.timeoutMs
+        });
+        this.httpSessions.delete(sessionId);
+        this.connections.delete(info.connectionId);
+      }
+    }
+  }
+
+  private buildRequestContext(req: IncomingMessage) {
+    return {
+      url: req.url,
+      method: req.method,
+      remoteAddress: req.socket?.remoteAddress,
+      headers: {
+        accept: req.headers['accept'],
+        'mcp-session-id': req.headers['mcp-session-id'],
+        'mcp-protocol-version': req.headers['mcp-protocol-version'],
+        'mcp-session-timeout': req.headers['mcp-session-timeout'],
+        'user-agent': req.headers['user-agent']
+      }
+    };
+  }
+
   private async notifyAllConnections(handler: (connection: MCPConnection) => Promise<void>): Promise<void> {
     const promises: Promise<void>[] = [];
 
     for (const connection of this.connections.values()) {
       if (connection.initialized) {
+        this.touchConnection(connection.id, { lastRequestAt: Date.now() });
         promises.push(
           handler(connection).catch(error => {
             logger.error(`Failed to notify connection ${connection.id}:`, error);
@@ -233,11 +325,14 @@ export class MCPServerManager {
 
       if (request.params.clientInfo) {
         connection.clientInfo = request.params.clientInfo;
+        connection.metrics.clientInfoUpdatedAt = Date.now();
         logger.log(`MCP client connected (${connectionId}): ${connection.clientInfo.name} v${connection.clientInfo.version}`);
 
         this.commandHandler.setClientInfo(connection.clientInfo);
         this.browserWebSocketManager.setMcpClientInfo(connection.clientInfo);
       }
+      connection.metrics.protocolVersion = request.params.protocolVersion;
+      this.touchConnection(connectionId, { lastRequestAt: Date.now() });
 
       return {
         protocolVersion: '2024-11-05',
@@ -255,6 +350,7 @@ export class MCPServerManager {
       if (connection) {
         logger.log(`Client initialized (${connectionId})`);
         connection.initialized = true;
+        this.touchConnection(connectionId);
 
         // Send initial notifications if tabs are connected
         if (this.tabRegistry.getAll().length > 0) {
@@ -313,7 +409,11 @@ export class MCPServerManager {
       id: connectionId,
       server,
       type: 'websocket',
-      initialized: false
+      initialized: false,
+      metrics: {
+        createdAt: Date.now(),
+        lastActivityAt: Date.now()
+      }
     });
 
     const transport = new WebSocketTransport(ws);
@@ -337,7 +437,10 @@ export class MCPServerManager {
   async connectSSE(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const connectionId = `sse-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    logger.log(`New SSE connection request: ${connectionId}`);
+    logger.log('New SSE connection request', {
+      connectionId,
+      ...this.buildRequestContext(req)
+    });
 
     const transport = new SSEServerTransport('/messages', res);
     const server = this.createMCPServer(connectionId);
@@ -347,16 +450,32 @@ export class MCPServerManager {
       server,
       type: 'sse',
       transport,
-      initialized: false
+      initialized: false,
+      metrics: {
+        createdAt: Date.now(),
+        lastActivityAt: Date.now()
+      }
     });
 
     try {
       await server.connect(transport);
+      if (transport.sessionId) {
+        this.sseSessions.set(transport.sessionId, this.connections.get(connectionId)!);
+        logger.log('SSE session initialized', {
+          connectionId,
+          sessionId: transport.sessionId
+        });
+      } else {
+        logger.warn('SSE transport missing sessionId after connect', { connectionId });
+      }
 
       // Clean up on close if possible (SSE is harder to detect disconnects without keepalive failures)
       // handling close is mostly done via the transport logic or if write fails
       req.on('close', () => {
         logger.log(`SSE client disconnected (${connectionId})`);
+        if (transport.sessionId) {
+          this.sseSessions.delete(transport.sessionId);
+        }
         this.connections.delete(connectionId);
       });
 
@@ -390,29 +509,39 @@ export class MCPServerManager {
       // Let's look at how we initialized SSEServerTransport.
       // new SSEServerTransport('/messages', res)
       // It likely expects POSTs to /messages?sessionId=...
-      logger.error('Received message without sessionId');
-      res.writeHead(400);
-      res.end('Missing sessionId');
+      logger.error('Received SSE message without sessionId', this.buildRequestContext(req));
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Missing sessionId' }));
       return;
     }
 
     // Find the connection with this transport session ID
     // Wait, the transport maintains the session ID. We need to iterate or lookup.
     let targetConnection: MCPConnection | undefined;
-    for (const conn of this.connections.values()) {
-      if (conn.type === 'sse' && conn.transport && conn.transport.sessionId === sessionId) {
-        targetConnection = conn;
-        break;
+    targetConnection = this.sseSessions.get(sessionId);
+
+    if (!targetConnection) {
+      for (const conn of this.connections.values()) {
+        if (conn.type === 'sse' && conn.transport && conn.transport.sessionId === sessionId) {
+          targetConnection = conn;
+          this.sseSessions.set(sessionId, conn);
+          break;
+        }
       }
     }
 
     if (!targetConnection || !targetConnection.transport) {
-      logger.error(`Session not found: ${sessionId}`);
-      res.writeHead(404);
-      res.end('Session not found');
+      logger.error('SSE session not found', {
+        sessionId,
+        knownSessions: this.sseSessions.size,
+        ...this.buildRequestContext(req)
+      });
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Session not found', sessionId }));
       return;
     }
 
+    this.touchConnection(targetConnection.id, { lastRequestAt: Date.now() });
     await (targetConnection.transport as SSEServerTransport).handlePostMessage(req, res);
   }
 
@@ -426,6 +555,54 @@ export class MCPServerManager {
     }));
   }
 
+  getDiagnostics() {
+    const now = Date.now();
+    const connections = Array.from(this.connections.values()).map(conn => ({
+      id: conn.id,
+      type: conn.type,
+      initialized: conn.initialized,
+      clientInfo: conn.clientInfo,
+      metrics: {
+        ...conn.metrics,
+        idleMs: now - conn.metrics.lastActivityAt
+      }
+    }));
+
+    const tabs = this.tabRegistry.getAll().map(tab => ({
+      tabId: tab.tabId,
+      url: tab.url,
+      title: tab.title,
+      connectedAt: tab.connectedAt
+    }));
+
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptimeMs: Math.round(process.uptime() * 1000),
+      connections: {
+        total: this.connections.size,
+        websocket: connections.filter(conn => conn.type === 'websocket').length,
+        sse: connections.filter(conn => conn.type === 'sse').length,
+        http: connections.filter(conn => conn.type === 'http').length,
+        initialized: connections.filter(conn => conn.initialized).length,
+        details: connections
+      },
+      sessions: {
+        sse: {
+          total: this.sseSessions.size
+        },
+        http: {
+          total: this.httpSessions.size,
+          defaultTimeoutMs: this.defaultHttpSessionTimeoutMs
+        }
+      },
+      tabs: {
+        total: tabs.length,
+        details: tabs
+      }
+    };
+  }
+
   /**
    * Handle HTTP requests for Streamable HTTP transport (ChatGPT, etc.)
    */
@@ -435,8 +612,11 @@ export class MCPServerManager {
 
     if (sessionId && this.httpSessions.has(sessionId)) {
       // Existing session - use existing transport
-      const connection = this.httpSessions.get(sessionId)!;
-      if (connection.transport) {
+      const sessionInfo = this.httpSessions.get(sessionId)!;
+      const connection = this.connections.get(sessionInfo.connectionId);
+      if (connection?.transport) {
+        sessionInfo.lastActivityAt = Date.now();
+        this.touchConnection(connection.id, { lastRequestAt: Date.now() });
         // Parse body for POST requests
         if (req.method === 'POST') {
           const body = await this.parseRequestBody(req);
@@ -444,13 +624,38 @@ export class MCPServerManager {
         } else {
           await (connection.transport as StreamableHTTPServerTransport).handleRequest(req, res);
         }
+      } else {
+        logger.warn('HTTP session found without active connection', {
+          sessionId,
+          connectionId: sessionInfo.connectionId
+        });
+        this.httpSessions.delete(sessionId);
       }
       return;
+    }
+
+    if (sessionId && !this.httpSessions.has(sessionId)) {
+      logger.warn('HTTP request with unknown session', {
+        sessionId,
+        ...this.buildRequestContext(req)
+      });
+    }
+
+    if (!req.headers['mcp-protocol-version']) {
+      logger.warn('HTTP request missing mcp-protocol-version header', this.buildRequestContext(req));
     }
 
     // New session - create new transport and server
     const connectionId = `http-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const server = this.createMCPServer(connectionId);
+    const timeoutHeader = this.parseSessionTimeout(req.headers['mcp-session-timeout'] as string | undefined);
+    const sessionTimeoutMs = timeoutHeader ?? this.defaultHttpSessionTimeoutMs;
+
+    logger.log('Initializing HTTP MCP session', {
+      connectionId,
+      timeoutMs: sessionTimeoutMs,
+      ...this.buildRequestContext(req)
+    });
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
@@ -459,8 +664,18 @@ export class MCPServerManager {
         // Store the session for future requests
         const conn = this.connections.get(connectionId);
         if (conn) {
-          this.httpSessions.set(newSessionId, conn);
-          logger.log(`HTTP session initialized: ${newSessionId}`);
+          this.httpSessions.set(newSessionId, {
+            sessionId: newSessionId,
+            connectionId,
+            createdAt: Date.now(),
+            lastActivityAt: Date.now(),
+            timeoutMs: sessionTimeoutMs
+          });
+          logger.log('HTTP session initialized', {
+            sessionId: newSessionId,
+            connectionId,
+            timeoutMs: sessionTimeoutMs
+          });
         }
       }
     });
@@ -470,7 +685,11 @@ export class MCPServerManager {
       server,
       type: 'http',
       transport,
-      initialized: false
+      initialized: false,
+      metrics: {
+        createdAt: Date.now(),
+        lastActivityAt: Date.now()
+      }
     };
 
     this.connections.set(connectionId, connection);

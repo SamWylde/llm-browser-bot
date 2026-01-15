@@ -176,6 +176,11 @@ Or:
 - Restart Claude Desktop completely
 - Check the config file path is correct for your OS
 
+### ChatGPT Developer Mode troubleshooting
+- Ensure the MCP URL ends with `/mcp` and uses **HTTPS** (no `localhost`).
+- Streamable HTTP requires the `Accept` header to include both `application/json` and `text/event-stream`.
+- If you see 406 or 400 errors, verify that `Mcp-Protocol-Version` and `Mcp-Session-Id` headers are sent by the client.
+
 ### Node.js errors
 - Ensure Node.js 18+ is installed: `node --version`
 - Try clearing npm cache: `npm cache clean --force`
@@ -248,6 +253,14 @@ ngrok http 61822
    - Enter the URL: `https://YOUR-TUNNEL-URL/mcp`
 
 For detailed instructions, see: [OpenAI Developer Mode Documentation](https://platform.openai.com/docs/guides/developer-mode)
+
+### Validate your ChatGPT tunnel
+
+If you want a quick connectivity check before configuring ChatGPT:
+
+```bash
+npx llm-browser-bot validate-chatgpt https://YOUR-TUNNEL-URL
+```
 
 ---
 

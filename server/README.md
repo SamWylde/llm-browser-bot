@@ -2,7 +2,7 @@
 
 MCP server for LLM Browser Bot automation. This server enables AI assistants like Claude to control web browsers through the LLM Browser Bot Chrome extension.
 
-**✨ Key Feature**: Support for multiple AI assistants running simultaneously! All clients connect via WebSocket to the same server.
+**✨ Key Feature**: Support for multiple AI assistants running simultaneously! Clients can connect over WebSocket or Streamable HTTP depending on platform support.
 
 ## Quick Start
 
@@ -79,6 +79,7 @@ Then configure Claude Desktop to use WebSocket transport:
 
 - **No arguments**: Starts the server on port 61822
 - `bridge`: Starts the server and provides stdio-to-WebSocket bridge for MCP clients
+- `validate-chatgpt <https://tunnel-url>`: Validate a public HTTPS URL for ChatGPT Developer Mode
 
 The server always runs on port 61822
 
@@ -121,6 +122,31 @@ Cline (VS Code settings.json) - WebSocket connection:
 ```
 
 All connected clients can control the same browser tabs simultaneously.
+
+## Client Compatibility
+
+| Client | Transport | Endpoint |
+| --- | --- | --- |
+| Claude Desktop | WebSocket | `ws://localhost:61822/mcp` |
+| Cline / Continue / Cursor | WebSocket | `ws://localhost:61822/mcp` |
+| ChatGPT Developer Mode | Streamable HTTP (SSE) | `https://YOUR-TUNNEL-URL/mcp` |
+| Gemini CLI | WebSocket | `ws://localhost:61822/mcp` |
+
+## Streamable HTTP (ChatGPT Developer Mode)
+
+Start the server and expose it with a public HTTPS tunnel (localtunnel/ngrok). Then configure ChatGPT to use:
+
+```
+https://YOUR-TUNNEL-URL/mcp
+```
+
+To validate the tunnel URL locally:
+
+```bash
+npx llm-browser-bot validate-chatgpt https://YOUR-TUNNEL-URL
+```
+
+The server also exposes a diagnostics endpoint at `http://localhost:61822/health` (or `/status`) which returns connection and session metrics.
 
 ## Requirements
 

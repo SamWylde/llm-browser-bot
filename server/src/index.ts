@@ -71,11 +71,36 @@ const mcpServerManager = new MCPServerManager(
 // HTTP Server Setup
 // ========================================================================
 
+const MCP_REQUIRED_ACCEPTS = ['application/json', 'text/event-stream'];
+
+function ensureMcpAcceptHeader(req: IncomingMessage, res: ServerResponse): boolean {
+  const rawHeader = req.headers['accept'];
+  const acceptHeader = Array.isArray(rawHeader) ? rawHeader.join(',') : rawHeader;
+  const normalizedHeader = acceptHeader?.toLowerCase() ?? '';
+
+  if (!acceptHeader || normalizedHeader.includes('*/*')) {
+    req.headers['accept'] = MCP_REQUIRED_ACCEPTS.join(', ');
+    return true;
+  }
+
+  const missing = MCP_REQUIRED_ACCEPTS.filter(value => !normalizedHeader.includes(value));
+  if (missing.length === 0) {
+    return true;
+  }
+
+  res.writeHead(406, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    error: 'Not Acceptable',
+    message: 'Streamable HTTP requires Accept: application/json and text/event-stream.'
+  }));
+  return false;
+}
+
 const httpServer = createServer(async (req, res) => {
   // Enable CORS for all endpoints
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Session-Timeout, Last-Event-ID');
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -97,6 +122,13 @@ const httpServer = createServer(async (req, res) => {
 
     const connections = mcpServerManager.getConnectionInfo();
     res.end(JSON.stringify(connections));
+    return;
+  }
+
+  // Health/diagnostics endpoint
+  if ((req.url === '/health' || req.url === '/status') && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(mcpServerManager.getDiagnostics()));
     return;
   }
 
@@ -187,6 +219,12 @@ const httpServer = createServer(async (req, res) => {
   // Handle /mcp endpoint for Streamable HTTP (ChatGPT, etc.)
   if (req.url === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
     try {
+      if (req.method === 'GET' || req.method === 'POST') {
+        const acceptOk = ensureMcpAcceptHeader(req, res);
+        if (!acceptOk) {
+          return;
+        }
+      }
       await mcpServerManager.handleHttpRequest(req, res);
     } catch (error) {
       logger.error('Error handling MCP HTTP request:', error);
@@ -301,6 +339,7 @@ async function startServer() {
     console.log();
     console.log('HTTP Endpoints:');
     console.log(`  Discovery: http://localhost:${PORT}/`);
+    console.log(`  Health: http://localhost:${PORT}/health`);
     console.log(`  Resources: http://localhost:${PORT}/tabs`);
     console.log(`  Tab info: http://localhost:${PORT}/tab/{tabId}`);
     console.log(`  Console: http://localhost:${PORT}/tab/{tabId}/console`);
