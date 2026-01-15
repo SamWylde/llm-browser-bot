@@ -63,7 +63,18 @@ document.getElementById('toggle').addEventListener('change', (e) => {
 
   try {
     if (e.target.checked) {
-      chrome.runtime.sendMessage({ type: 'connect', tabId });
+      chrome.runtime.sendMessage({ type: 'connect', tabId }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+          showReloadRequired();
+        } else if (response && !response.ok) {
+          console.error('Connection failed:', response.error);
+          // Revert toggle if connection failed logically
+          e.target.checked = false;
+          // Show temporary error status
+          showError('Failed: ' + (response.error || 'Unknown error'));
+        }
+      });
     } else {
       chrome.runtime.sendMessage({ type: 'disconnect', tabId });
     }
@@ -147,4 +158,19 @@ function updateUI(connected, status = 'disconnected') {
   }
 
   setTimeout(() => { isUpdatingUI = false; }, 100);
+}
+
+function showError(message) {
+  const statusEl = document.getElementById('status');
+  const statusText = statusEl.querySelector('.status-text');
+
+  statusEl.className = 'status-indicator error';
+  statusText.textContent = message;
+
+  setTimeout(() => {
+    // Revert to disconnected state after 3s
+    if (statusEl.classList.contains('error')) {
+      updateUI(false, 'disconnected');
+    }
+  }, 3000);
 }

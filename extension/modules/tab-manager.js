@@ -65,9 +65,12 @@ export class TabManager {
       });
       tabState.connectionInfo.setError(tabInfo.error);
       this.notifyListeners(tabId, 'stateChanged', tabState);
-      return { ok: false, error: tabInfo.error.message };
+      // Don't abort connection - allow connecting without content script (limit functionality)
+      console.warn(`Connecting tab ${tabId} without content script: ${tabInfo.error.message}`);
     }
-    tabState.updatePageMetadata(tabInfo);
+    else {
+      tabState.updatePageMetadata(tabInfo);
+    }
 
     // Set up connection
     tabState.connectionInfo.userDisconnected = false;
