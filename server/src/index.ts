@@ -120,6 +120,13 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
+  // Health/diagnostics endpoint
+  if ((req.url === '/health' || req.url === '/status') && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(mcpServerManager.getDiagnostics()));
+    return;
+  }
+
   // SSE Endpoint
   if (req.url === '/sse' && req.method === 'GET') {
     await mcpServerManager.connectSSE(req, res);
@@ -324,6 +331,7 @@ async function startServer() {
     console.log();
     console.log('HTTP Endpoints:');
     console.log(`  Discovery: http://localhost:${PORT}/`);
+    console.log(`  Health: http://localhost:${PORT}/health`);
     console.log(`  Resources: http://localhost:${PORT}/tabs`);
     console.log(`  Tab info: http://localhost:${PORT}/tab/{tabId}`);
     console.log(`  Console: http://localhost:${PORT}/tab/{tabId}/console`);
