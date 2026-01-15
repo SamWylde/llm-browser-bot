@@ -198,9 +198,139 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
     Write-Host "`n[Startup] [3/3] Starting server..." -ForegroundColor Green
-    Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
     Write-Host ""
-    cmd /c "npm start"
+
+    # Interactive platform selection
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host "Which AI platform are you using?" -ForegroundColor Cyan
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  1) Claude Desktop / Cline / Continue / Cursor"
+    Write-Host "  2) ChatGPT (requires public URL)"
+    Write-Host "  3) Gemini CLI"
+    Write-Host "  4) Just start the server"
+    Write-Host ""
+
+    $choice = Read-Host "Enter choice [1-4]"
+
+    switch ($choice) {
+        "2" {
+            # ChatGPT setup - needs tunnel
+            Write-Host ""
+            Write-Host "ChatGPT requires a public HTTPS URL." -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "Choose a tunnel provider:" -ForegroundColor Cyan
+            Write-Host "  1) localtunnel (FREE - no signup!)"
+            Write-Host "  2) ngrok (free tier - requires signup)"
+            Write-Host "  3) I'll set up my own tunnel"
+            Write-Host ""
+
+            $tunnelChoice = Read-Host "Enter choice [1-3]"
+
+            # Start server in background
+            Write-Host "`nStarting server in background..." -ForegroundColor Yellow
+            $serverJob = Start-Job -ScriptBlock {
+                Set-Location $using:PWD
+                cmd /c "npm start"
+            }
+            Start-Sleep -Seconds 3
+
+            switch ($tunnelChoice) {
+                "1" {
+                    Write-Host "Starting localtunnel (free, no signup)..." -ForegroundColor Yellow
+                    Write-Host "This may take a moment on first run..." -ForegroundColor Gray
+                    Write-Host ""
+                    cmd /c "npx -y localtunnel --port 61822"
+                }
+                "2" {
+                    # Check if ngrok exists
+                    if (Get-Command "ngrok" -ErrorAction SilentlyContinue) {
+                        Write-Host "Starting ngrok tunnel..." -ForegroundColor Yellow
+                        cmd /c "ngrok http 61822"
+                    } else {
+                        Write-Host "ngrok is not installed." -ForegroundColor Red
+                        Write-Host ""
+                        Write-Host "Install ngrok:" -ForegroundColor Cyan
+                        Write-Host "  1. Visit: https://ngrok.com/download"
+                        Write-Host "  2. Sign up for a free account"
+                        Write-Host "  3. Install and run: ngrok config add-authtoken YOUR_TOKEN"
+                        Write-Host ""
+                        Write-Host "Or use localtunnel (option 1) - no signup required!" -ForegroundColor Green
+                        Read-Host "Press Enter to exit..."
+                        Stop-Job $serverJob
+                        exit 1
+                    }
+                }
+                default {
+                    Write-Host ""
+                    Write-Host "Server is running on:" -ForegroundColor Cyan
+                    Write-Host "  Local: http://localhost:61822" -ForegroundColor Green
+                    Write-Host "  WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+                    Write-Host ""
+                    Write-Host "Set up your own tunnel to expose port 61822, then use:" -ForegroundColor Cyan
+                    Write-Host "  https://YOUR-TUNNEL-URL/mcp" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "Press Ctrl+C to stop the server." -ForegroundColor Gray
+                    Wait-Job $serverJob
+                }
+            }
+        }
+        "1" {
+            # Claude Desktop
+            Write-Host ""
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host "Claude Desktop Configuration" -ForegroundColor Cyan
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Add this to your Claude Desktop config file:" -ForegroundColor White
+            Write-Host ""
+            Write-Host "  Windows: %APPDATA%\Claude\claude_desktop_config.json" -ForegroundColor Gray
+            Write-Host "  macOS: ~/Library/Application Support/Claude/claude_desktop_config.json" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host '{
+  "mcpServers": {
+    "llm-browser-bot": {
+      "command": "npx",
+      "args": ["-y", "llm-browser-bot", "bridge"]
+    }
+  }
+}' -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Local Server: http://localhost:61822" -ForegroundColor Green
+            Write-Host "MCP WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
+            Write-Host ""
+            cmd /c "npm start"
+        }
+        "3" {
+            # Gemini CLI
+            Write-Host ""
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host "Gemini CLI Configuration" -ForegroundColor Cyan
+            Write-Host "============================================" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Configure Gemini CLI to use this MCP server:" -ForegroundColor White
+            Write-Host "  MCP WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "See: https://geminicli.com/docs/tools/mcp-server/" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
+            Write-Host ""
+            cmd /c "npm start"
+        }
+        default {
+            # Just start the server
+            Write-Host ""
+            Write-Host "Server: http://localhost:61822" -ForegroundColor Green
+            Write-Host "MCP WebSocket: ws://localhost:61822/mcp" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "Server is running. Press Ctrl+C to stop." -ForegroundColor Gray
+            Write-Host ""
+            cmd /c "npm start"
+        }
+    }
+
     if ($LASTEXITCODE -ne 0) { throw "Server exited with error code $LASTEXITCODE" }
 
 } catch {
