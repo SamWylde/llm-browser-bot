@@ -71,11 +71,31 @@ const mcpServerManager = new MCPServerManager(
 // HTTP Server Setup
 // ========================================================================
 
+const MCP_REQUIRED_ACCEPTS = ['application/json', 'text/event-stream'];
+
+function normalizeMcpAcceptHeader(req: IncomingMessage): void {
+  const rawHeader = req.headers['accept'];
+  const acceptHeader = Array.isArray(rawHeader) ? rawHeader.join(',') : rawHeader;
+  const normalizedHeader = acceptHeader?.toLowerCase() ?? '';
+
+  if (!acceptHeader || normalizedHeader.includes('*/*')) {
+    req.headers['accept'] = MCP_REQUIRED_ACCEPTS.join(', ');
+    return;
+  }
+
+  const missing = MCP_REQUIRED_ACCEPTS.filter(value => !normalizedHeader.includes(value));
+  if (missing.length === 0) {
+    return;
+  }
+
+  req.headers['accept'] = `${acceptHeader}, ${missing.join(', ')}`;
+}
+
 const httpServer = createServer(async (req, res) => {
   // Enable CORS for all endpoints
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Session-Timeout, Last-Event-ID');
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -187,6 +207,9 @@ const httpServer = createServer(async (req, res) => {
   // Handle /mcp endpoint for Streamable HTTP (ChatGPT, etc.)
   if (req.url === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
     try {
+      if (req.method === 'GET' || req.method === 'POST') {
+        normalizeMcpAcceptHeader(req);
+      }
       await mcpServerManager.handleHttpRequest(req, res);
     } catch (error) {
       logger.error('Error handling MCP HTTP request:', error);
