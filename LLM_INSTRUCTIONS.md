@@ -29,9 +29,11 @@ SELECTOR TIPS:
 - Use 'elements' tool first if unsure which element to target
 
 ERROR RECOVERY:
+- ALWAYS RETRY on "Resource not found" - it's a transient issue
 - "Element not found" → try wait_for_element, check visibility
 - "Tab not found" → call list_tabs to refresh tab list
 - Timeout → increase timeout parameter or check console_logs
+- Connection drops are normal - just proceed with next command
 ```
 
 ---
@@ -132,21 +134,35 @@ For pages that load content asynchronously:
 
 ## Error Handling
 
+### IMPORTANT: Retry on Failure
+**If any tool returns an error (especially "Resource not found" or connection errors), ALWAYS retry the same tool call once before giving up.** Connection issues are transient and often resolve on retry.
+
+### "Resource not found" or "Session not found"
+This is typically a transient connection issue:
+1. **RETRY the exact same tool call** - it usually works on second try
+2. If still failing, call `list_tabs` to refresh the connection
+3. Get a fresh tabId and retry your original command
+
 ### "Element not found"
 - Verify selector is correct
-- Check if element is visible
-- Wait for dynamic content to load
+- Check if element is visible using `elements` with `visible: "true"`
+- Wait for dynamic content: use `wait_for_element` first
 - Try XPath if CSS selector fails
+- Page may have changed - take a `screenshot` to verify current state
 
-### "Tab not found"
+### "Tab not found" or "Tab disconnected"
 - Call `list_tabs` to get current tabs
-- Tab may have disconnected
-- Reopen DevTools panel
+- The user may have closed/refreshed the tab
+- Get a new tabId and continue
 
 ### Command timeout
-- Increase `timeout` parameter
+- Increase `timeout` parameter (default is 5000ms)
 - Check for JavaScript errors via `console_logs`
-- Page may be unresponsive
+- Page may be loading - wait and retry
+
+### Connection drops between commands
+This is **normal behavior** - the server handles reconnection automatically.
+Just proceed with your next command; it will establish a new connection.
 
 ## Tool Categories
 
@@ -238,3 +254,4 @@ All tools return:
 3. **First match wins** - be specific with selectors
 4. **Check visibility** before interacting
 5. **Wait for content** on dynamic pages
+6. **RETRY on failure** - "Resource not found" usually works on second try
