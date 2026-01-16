@@ -77,6 +77,7 @@ interface MCPConnection {
   clientInfo?: { name?: string; version?: string };
   initialized: boolean;
   metrics: MCPConnectionMetrics;
+  heartbeatTimer?: NodeJS.Timeout;
 }
 
 export class MCPServerManager {
@@ -110,8 +111,12 @@ export class MCPServerManager {
       clearInterval(this.httpSessionCleanupTimer);
       this.httpSessionCleanupTimer = undefined;
     }
-    // Close all connections
+    // Close all connections and clean up heartbeat timers
     for (const connection of this.connections.values()) {
+      if (connection.heartbeatTimer) {
+        clearInterval(connection.heartbeatTimer);
+        connection.heartbeatTimer = undefined;
+      }
       connection.server.close();
     }
     this.connections.clear();
@@ -252,6 +257,12 @@ export class MCPServerManager {
           idleMs: now - info.lastActivityAt,
           timeoutMs: info.timeoutMs
         });
+        // Clean up heartbeat timer before removing connection
+        const conn = this.connections.get(info.connectionId);
+        if (conn?.heartbeatTimer) {
+          clearInterval(conn.heartbeatTimer);
+          conn.heartbeatTimer = undefined;
+        }
         this.httpSessions.delete(sessionId);
         this.connections.delete(info.connectionId);
       }
@@ -440,6 +451,11 @@ export class MCPServerManager {
     // Clean up on close
     ws.on('close', () => {
       logger.log(`MCP WebSocket client disconnected (${connectionId})`);
+      const conn = this.connections.get(connectionId);
+      if (conn?.heartbeatTimer) {
+        clearInterval(conn.heartbeatTimer);
+        conn.heartbeatTimer = undefined;
+      }
       this.connections.delete(connectionId);
     });
   }
@@ -485,6 +501,11 @@ export class MCPServerManager {
       // Clean up on close
       req.on('close', () => {
         logger.log(`SSE client disconnected (${connectionId})`);
+        const conn = this.connections.get(connectionId);
+        if (conn?.heartbeatTimer) {
+          clearInterval(conn.heartbeatTimer);
+          conn.heartbeatTimer = undefined;
+        }
         if (transport.sessionId) {
           this.sseSessions.delete(transport.sessionId);
         }
@@ -678,6 +699,55 @@ export class MCPServerManager {
   }
 
   /**
+   * Start heartbeat timer for HTTP connections to prevent timeout
+   * ChatGPT and other clients timeout after ~60 seconds without activity
+   * Send heartbeats every 30 seconds as recommended by MCP best practices
+   */
+  private startHttpHeartbeat(connection: MCPConnection): void {
+    // Clear any existing timer
+    if (connection.heartbeatTimer) {
+      clearInterval(connection.heartbeatTimer);
+    }
+
+    const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds (recommended for StreamableHTTP)
+
+    const sendHeartbeat = async () => {
+      try {
+        if (connection.initialized) {
+          // Send a ping notification to keep the connection alive
+          // This sends data through the SSE stream, preventing timeout
+          await connection.server.notification({
+            method: 'mcp/heartbeat',
+            params: {
+              timestamp: Date.now()
+            }
+          }).catch(error => {
+            // If notification fails, connection might be closed
+            logger.warn(`Heartbeat failed for connection ${connection.id}:`, error);
+            if (connection.heartbeatTimer) {
+              clearInterval(connection.heartbeatTimer);
+              connection.heartbeatTimer = undefined;
+            }
+          });
+          this.touchConnection(connection.id);
+        }
+      } catch (error) {
+        // Heartbeat failed, connection likely closed
+        if (connection.heartbeatTimer) {
+          clearInterval(connection.heartbeatTimer);
+          connection.heartbeatTimer = undefined;
+        }
+      }
+    };
+
+    // Start the heartbeat timer
+    connection.heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    connection.heartbeatTimer.unref?.(); // Don't block process exit
+
+    logger.log(`Started heartbeat for HTTP connection ${connection.id} (interval: ${HEARTBEAT_INTERVAL_MS}ms)`);
+  }
+
+  /**
    * Handle HTTP requests for Streamable HTTP transport (ChatGPT, etc.)
    */
   async handleHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -751,6 +821,11 @@ export class MCPServerManager {
             connectionId,
             timeoutMs: sessionTimeoutMs
           });
+
+          // Start heartbeat for HTTP connections to prevent ChatGPT timeout
+          // HTTP/1.1 proxies close idle connections after ~60 seconds
+          // Send heartbeats every 30 seconds to keep connection alive
+          this.startHttpHeartbeat(conn);
         }
       }
     });
@@ -784,6 +859,12 @@ export class MCPServerManager {
     // Handle cleanup when transport closes
     transport.onclose = () => {
       logger.log(`MCP HTTP client disconnected (${connectionId})`);
+      // Clean up heartbeat timer
+      const conn = this.connections.get(connectionId);
+      if (conn?.heartbeatTimer) {
+        clearInterval(conn.heartbeatTimer);
+        conn.heartbeatTimer = undefined;
+      }
       // Clean up session
       if (transport.sessionId) {
         this.httpSessions.delete(transport.sessionId);
