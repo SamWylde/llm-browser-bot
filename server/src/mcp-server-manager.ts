@@ -538,6 +538,52 @@ export class MCPServerManager {
     await (targetConnection.transport as SSEServerTransport).handlePostMessage(req, res);
   }
 
+  /**
+   * Handle POST /mcp requests - route to appropriate session (SSE or HTTP)
+   */
+  async handleMcpPost(req: IncomingMessage, res: ServerResponse, sessionId: string | undefined): Promise<void> {
+    // Check HTTP sessions first
+    if (sessionId && this.httpSessions.has(sessionId)) {
+      const sessionInfo = this.httpSessions.get(sessionId)!;
+      const connection = this.connections.get(sessionInfo.connectionId);
+      if (connection?.transport) {
+        logger.log('Routing POST /mcp to HTTP session', { sessionId });
+        sessionInfo.lastActivityAt = Date.now();
+        this.touchConnection(connection.id, { lastRequestAt: Date.now() });
+        const body = await this.parseRequestBody(req);
+        await (connection.transport as StreamableHTTPServerTransport).handleRequest(req, res, body);
+        return;
+      }
+    }
+
+    // Check SSE sessions
+    if (sessionId && this.sseSessions.has(sessionId)) {
+      const sseConnection = this.sseSessions.get(sessionId);
+      if (sseConnection?.transport) {
+        logger.log('Routing POST /mcp to SSE session', { sessionId });
+        this.touchConnection(sseConnection.id, { lastRequestAt: Date.now() });
+        await (sseConnection.transport as SSEServerTransport).handlePostMessage(req, res);
+        return;
+      }
+    }
+
+    // No session ID or unknown session - log error
+    if (sessionId) {
+      logger.error('POST /mcp with unknown session', {
+        sessionId,
+        httpSessions: this.httpSessions.size,
+        sseSessions: this.sseSessions.size,
+        ...this.buildRequestContext(req)
+      });
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Session not found', sessionId }));
+    } else {
+      logger.error('POST /mcp without session ID', this.buildRequestContext(req));
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Missing mcp-session-id header. Connect via GET /mcp first.' }));
+    }
+  }
+
   // Used to show the connected MCP clients at http://localhost:61822/
   getConnectionInfo(): Array<{ id: string; type: string; clientInfo?: any; initialized: boolean }> {
     return Array.from(this.connections.values()).map(conn => ({
