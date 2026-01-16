@@ -213,28 +213,16 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  // Handle /mcp endpoint - detect transport type based on request
+  // Handle /mcp endpoint - Use Streamable HTTP transport for all requests
+  // NOTE: Streamable HTTP is the modern MCP transport (SSE is deprecated)
+  // ChatGPT/OpenAI should use this transport, not SSE
   if (req.url === '/mcp' && (req.method === 'POST' || req.method === 'GET' || req.method === 'DELETE')) {
     try {
-      const acceptHeader = req.headers['accept'] || '';
-
-      // GET with Accept: text/event-stream = SSE transport (ChatGPT pattern)
-      if (req.method === 'GET' && acceptHeader.includes('text/event-stream')) {
-        logger.log('Routing GET /mcp to SSE transport (client wants event stream)');
-        await mcpServerManager.connectSSE(req, res);
-        return;
-      }
-
-      // POST requests - check if this is for an existing session
-      if (req.method === 'POST') {
-        const sessionId = req.headers['mcp-session-id'] as string | undefined;
-        // Route to appropriate handler based on session type
-        await mcpServerManager.handleMcpPost(req, res, sessionId);
-        return;
-      }
-
-      // Other requests (DELETE, GET without SSE) - use Streamable HTTP
+      // Normalize Accept header to ensure Streamable HTTP transport works correctly
       normalizeMcpAcceptHeader(req);
+
+      // All /mcp requests go through Streamable HTTP transport
+      // This handles POST (messages), GET (SSE stream within HTTP), and DELETE (session end)
       await mcpServerManager.handleHttpRequest(req, res);
     } catch (error) {
       logger.error('Error handling MCP HTTP request:', error);
