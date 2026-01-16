@@ -102,6 +102,23 @@ export class MCPServerManager {
     this.httpSessionCleanupTimer.unref?.();
   }
 
+  /**
+   * Gracefully shutdown the manager, cleaning up timers and connections
+   */
+  shutdown(): void {
+    if (this.httpSessionCleanupTimer) {
+      clearInterval(this.httpSessionCleanupTimer);
+      this.httpSessionCleanupTimer = undefined;
+    }
+    // Close all connections
+    for (const connection of this.connections.values()) {
+      connection.server.close();
+    }
+    this.connections.clear();
+    this.httpSessions.clear();
+    this.sseSessions.clear();
+  }
+
   private setupTabCallbacks(): void {
     // Tab connect callback
     this.tabRegistry.setConnectCallback(async (tabId: string) => {
@@ -474,6 +491,10 @@ export class MCPServerManager {
 
     } catch (error) {
       logger.error(`Failed to connect MCP SSE server (${connectionId}):`, error);
+      // Clean up both connections and sseSessions to prevent memory leaks
+      if (transport.sessionId) {
+        this.sseSessions.delete(transport.sessionId);
+      }
       this.connections.delete(connectionId);
       res.end(); // Ensure response is closed if error
     }
@@ -685,18 +706,7 @@ export class MCPServerManager {
       return;
     }
 
-    // Check if this is an SSE session trying to POST to /mcp instead of /messages
-    if (sessionId && this.sseSessions.has(sessionId)) {
-      const sseConnection = this.sseSessions.get(sessionId);
-      if (sseConnection && sseConnection.transport && req.method === 'POST') {
-        logger.log('Routing POST /mcp to SSE session', { sessionId });
-        this.touchConnection(sseConnection.id, { lastRequestAt: Date.now() });
-        await (sseConnection.transport as SSEServerTransport).handlePostMessage(req, res);
-        return;
-      }
-    }
-
-    if (sessionId && !this.httpSessions.has(sessionId) && !this.sseSessions.has(sessionId)) {
+    if (sessionId && !this.httpSessions.has(sessionId)) {
       logger.warn('HTTP request with unknown session', {
         sessionId,
         ...this.buildRequestContext(req)
@@ -779,24 +789,6 @@ export class MCPServerManager {
       this.connections.delete(connectionId);
     };
 
-    // Intercept response to debug 400 errors
-    const originalWriteHead = res.writeHead;
-    const originalEnd = res.end;
-
-    res.writeHead = function (statusCode: number, ...args: any[]) {
-      if (statusCode >= 400) {
-        logger.error(`Debug: Caught ${statusCode} response for ${connectionId}`);
-      }
-      return originalWriteHead.apply(res, [statusCode, ...args] as any);
-    };
-
-    res.end = function (chunk: any, ...args: any[]) {
-      if (chunk && chunk.toString().includes('error')) {
-        logger.error(`Debug: Response body for ${connectionId}: ${chunk.toString()}`);
-      }
-      return originalEnd.apply(res, [chunk, ...args] as any);
-    };
-
     try {
       if (req.method === 'POST') {
         const body = await this.parseRequestBody(req);
@@ -806,9 +798,6 @@ export class MCPServerManager {
       }
     } catch (err: any) {
       logger.error('Error in transport.handleRequest:', err);
-      // Restore original methods just in case
-      res.writeHead = originalWriteHead;
-      res.end = originalEnd;
       if (!res.headersSent) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: err.message }));
@@ -816,20 +805,37 @@ export class MCPServerManager {
     }
   }
 
-  private parseRequestBody(req: IncomingMessage): Promise<unknown> {
+  private parseRequestBody(req: IncomingMessage, timeoutMs: number = 30000): Promise<unknown> {
     return new Promise((resolve, reject) => {
       let body = '';
+      let completed = false;
+
+      const timeout = setTimeout(() => {
+        if (!completed) {
+          completed = true;
+          reject(new Error('Request body parsing timeout'));
+        }
+      }, timeoutMs);
+
       req.on('data', (chunk) => {
         body += chunk.toString();
       });
       req.on('end', () => {
+        if (completed) return;
+        completed = true;
+        clearTimeout(timeout);
         try {
           resolve(body ? JSON.parse(body) : undefined);
         } catch (error) {
           reject(new Error('Invalid JSON body'));
         }
       });
-      req.on('error', reject);
+      req.on('error', (err) => {
+        if (completed) return;
+        completed = true;
+        clearTimeout(timeout);
+        reject(err);
+      });
     });
   }
 }

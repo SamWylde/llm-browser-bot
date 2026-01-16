@@ -103,8 +103,8 @@ export class BrowserWebSocketManager {
         }
       });
 
-      ws.on('close', (e) => {
-        console.log('Connection closed', e);
+      ws.on('close', (code) => {
+        logger.log(`WebSocket connection closed with code ${code}`);
         clearInterval(pingInterval);
         const connection = this.tabRegistry.findByWebSocket(ws);
         if (connection) {
