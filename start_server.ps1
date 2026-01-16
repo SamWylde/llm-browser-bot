@@ -504,19 +504,27 @@ Read-Host 'Press Enter to close...'
             Start-Process powershell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $serverScriptPath
             Start-Sleep -Seconds 4
 
-            # Offer to launch automation browser
+            # Launch automation browser - prompt with emphasis
+            Write-Host ""
+            Write-Host "============================================" -ForegroundColor Yellow
+            Write-Host "   AUTOMATION BROWSER SETUP" -ForegroundColor Yellow
+            Write-Host "============================================" -ForegroundColor Yellow
             Write-Host ""
             Write-Host "Would you like to launch a Chrome window for automation?" -ForegroundColor Cyan
             Write-Host "(This window will be controlled by ChatGPT while you use your main browser)" -ForegroundColor Gray
             Write-Host ""
-            Write-Host "  Y) Yes - Launch automation browser (recommended)"
+            Write-Host "  Y) Yes - Launch automation browser (recommended)" -ForegroundColor Green
             Write-Host "  N) No - I'll open a tab myself"
             Write-Host ""
-            $launchBrowser = Read-Host "Enter choice [Y/N]"
+            $launchBrowser = Read-Host "Enter choice [Y/N] (default: Y)"
 
-            if ($launchBrowser -eq 'Y' -or $launchBrowser -eq 'y' -or $launchBrowser -eq '') {
+            if ($launchBrowser -ne 'N' -and $launchBrowser -ne 'n') {
                 $extensionDir = Join-Path $scriptRoot "extension"
-                Launch-AutomationBrowser -ExtensionPath $extensionDir
+                $launchResult = Launch-AutomationBrowser -ExtensionPath $extensionDir
+                if (-not $launchResult) {
+                    Write-Host ""
+                    Write-Warning "Browser launch failed. Please open Chrome manually and navigate to: http://localhost:61822/welcome"
+                }
             }
 
             switch ($tunnelChoice) {
