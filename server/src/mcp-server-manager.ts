@@ -479,10 +479,43 @@ export class MCPServerManager {
         logger.warn('SSE transport missing sessionId after connect', { connectionId });
       }
 
-      // Clean up on close if possible (SSE is harder to detect disconnects without keepalive failures)
-      // handling close is mostly done via the transport logic or if write fails
+      // SSE Keep-Alive Heartbeat - sends a comment every 15 seconds to prevent timeout
+      // This is critical for ChatGPT/OpenAI MCP clients which timeout without activity
+      const KEEPALIVE_INTERVAL_MS = 15000; // 15 seconds as recommended by MCP framework
+      let keepAliveTimer: NodeJS.Timeout | null = null;
+
+      const sendKeepAlive = () => {
+        try {
+          // SSE comment format - doesn't trigger client events but keeps connection alive
+          if (!res.writableEnded && res.writable) {
+            res.write(': ping\n\n');
+            this.touchConnection(connectionId);
+          } else {
+            // Connection is closed, clean up timer
+            if (keepAliveTimer) {
+              clearInterval(keepAliveTimer);
+              keepAliveTimer = null;
+            }
+          }
+        } catch (error) {
+          // Write failed, connection probably closed
+          if (keepAliveTimer) {
+            clearInterval(keepAliveTimer);
+            keepAliveTimer = null;
+          }
+        }
+      };
+
+      keepAliveTimer = setInterval(sendKeepAlive, KEEPALIVE_INTERVAL_MS);
+      keepAliveTimer.unref?.(); // Don't block process exit
+
+      // Clean up on close
       req.on('close', () => {
         logger.log(`SSE client disconnected (${connectionId})`);
+        if (keepAliveTimer) {
+          clearInterval(keepAliveTimer);
+          keepAliveTimer = null;
+        }
         if (transport.sessionId) {
           this.sseSessions.delete(transport.sessionId);
         }
