@@ -1,7 +1,7 @@
 import { keypress } from './background-keypress.js';
 import { click, hover } from './background-click.js';
 import { navigate, back, forward, close, reload, show } from './background-navigate.js';
-import { screenshot } from './background-screenshot.js';
+import { screenshot, scrolling_screenshot } from './background-screenshot.js';
 import { getLogs } from './background-console.js';
 
 export const getFromContentScript = async (tabId, command, params,) => {
@@ -110,6 +110,7 @@ export const backgroundCommands = {
   hover,
   keypress,
   screenshot,
+  scrolling_screenshot,
   getLogs,
   getAllTabs
 }
