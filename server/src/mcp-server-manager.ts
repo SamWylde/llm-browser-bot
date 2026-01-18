@@ -700,7 +700,7 @@ export class MCPServerManager {
 
   /**
    * Start heartbeat timer for HTTP connections to prevent timeout
-   * ChatGPT and other clients timeout after ~60 seconds without activity
+   * ChatGPT and other clients timeout after ~60 seconds without activity on the GET SSE stream
    * Send heartbeats every 30 seconds as recommended by MCP best practices
    */
   private startHttpHeartbeat(connection: MCPConnection): void {
@@ -714,10 +714,10 @@ export class MCPServerManager {
     const sendHeartbeat = async () => {
       try {
         if (connection.initialized) {
-          // Send a ping notification to keep the connection alive
-          // This sends data through the SSE stream, preventing timeout
+          // Send a ping notification to keep the GET SSE stream alive
+          // This sends data through the SSE stream, preventing HTTP/1.1 proxy timeout
           await connection.server.notification({
-            method: 'mcp/heartbeat',
+            method: 'notifications/heartbeat',
             params: {
               timestamp: Date.now()
             }
@@ -729,7 +729,19 @@ export class MCPServerManager {
               connection.heartbeatTimer = undefined;
             }
           });
+
+          // Update both connection and HTTP session activity timestamps
           this.touchConnection(connection.id);
+
+          // CRITICAL: Update HTTP session lastActivityAt to prevent session cleanup
+          const transport = connection.transport as StreamableHTTPServerTransport;
+          if (transport.sessionId) {
+            const sessionInfo = this.httpSessions.get(transport.sessionId);
+            if (sessionInfo) {
+              sessionInfo.lastActivityAt = Date.now();
+              logger.log(`Heartbeat sent for HTTP session ${transport.sessionId}`);
+            }
+          }
         }
       } catch (error) {
         // Heartbeat failed, connection likely closed

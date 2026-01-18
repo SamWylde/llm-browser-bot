@@ -227,10 +227,12 @@ tools:
 
   screenshot:
     description: >-
-      Capture a screenshot of the page or specific element using CSS selector 
-      or XPath. When a selector/xpath is provided, only the first matching 
-      element will be captured. Returns the unique selector of the captured 
-      element if applicable.
+      Capture a screenshot of the page or specific element using CSS selector
+      or XPath. When a selector/xpath is provided, only the first matching
+      element will be captured. Returns the unique selector of the captured
+      element if applicable. The response includes image data as base64, and
+      for ChatGPT users, a viewUrl field with an HTTP URL that can be accessed
+      to view the screenshot image directly (useful when base64 viewing is blocked).
     required: [tabId]
     properties:
       tabId: *tabId
