@@ -258,6 +258,51 @@ tools:
         type: number
         description: Command timeout in milliseconds (default 5000)
 
+  scrolling_screenshot:
+    description: >-
+      Capture a full-page scrolling screenshot by progressively scrolling and
+      stitching screenshots together. Perfect for pages with dynamically loaded
+      content (infinite scroll, lazy loading). Returns a single tall image
+      containing the entire scrollable page content.
+    required: [tabId]
+    properties:
+      tabId: *tabId
+      maxScrolls:
+        type: integer
+        description: Maximum number of scroll steps (default 10, prevents infinite loops)
+        default: 10
+        minimum: 1
+        maximum: 50
+      scrollDelay:
+        type: integer
+        description: Delay in milliseconds after each scroll to wait for content to load (default 1000ms)
+        default: 1000
+        minimum: 100
+        maximum: 5000
+      scale:
+        type: number
+        description: Scale factor (0.1-1.0) to reduce screenshot size (default 0.3)
+        default: 0.3
+        minimum: 0.1
+        maximum: 1
+      format:
+        type: string
+        description: Image format (default webp for best compression)
+        default: webp
+        enum: [webp, jpeg, png]
+      quality:
+        type: number
+        description: Compression quality for webp/jpeg (0.1-1.0, default 0.85)
+        default: 0.85
+        minimum: 0.1
+        maximum: 1
+      timeout:
+        type: number
+        description: Command timeout in milliseconds (default 30000ms for long scrolling pages)
+        default: 30000
+        minimum: 5000
+        maximum: 120000
+
 
   dom:
     description: >-
