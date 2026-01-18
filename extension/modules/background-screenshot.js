@@ -123,6 +123,8 @@ export async function scrolling_screenshot({ tabId }, {
             const screenshots = ${JSON.stringify(screenshots)};
             const scale = ${scale};
             const viewportWidth = ${viewportWidth};
+            const format = '${format}';
+            const quality = ${quality};
 
             // Calculate total height
             let totalHeight = 0;
@@ -141,7 +143,7 @@ export async function scrolling_screenshot({ tabId }, {
               await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
-                img.src = 'data:image/${format};base64,' + shot.data;
+                img.src = 'data:image/' + format + ';base64,' + shot.data;
               });
 
               ctx.drawImage(img, 0, currentY);
@@ -149,7 +151,7 @@ export async function scrolling_screenshot({ tabId }, {
             }
 
             // Convert canvas to base64
-            const dataUrl = canvas.toDataURL('image/${format}', ${quality});
+            const dataUrl = canvas.toDataURL('image/' + format, quality);
             return dataUrl.split(',')[1]; // Return just the base64 data
           })()
         `
