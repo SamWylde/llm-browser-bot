@@ -740,20 +740,31 @@ const helpers = {
 
   // ============ NEW TOOLS ============
 
-  scroll: ({ selector, xpath, direction, x, y, behavior = 'smooth' }) => {
+  scroll: async ({ selector, xpath, direction, x, y, behavior = 'auto' }) => {
     try {
       // Priority 1: Scroll by direction (full page height)
       if (direction) {
         const pageHeight = window.innerHeight;
         const scrollAmount = direction === 'up' ? -pageHeight : pageHeight;
+        const oldPosition = { x: window.scrollX, y: window.scrollY };
+
         window.scrollBy({
           top: scrollAmount,
           behavior: behavior
         });
+
+        // Wait for scroll to complete (especially important for smooth scrolling)
+        if (behavior === 'smooth') {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
         return respondWith({
           scrolled: true,
           direction,
           amount: Math.abs(scrollAmount),
+          oldPosition: oldPosition,
           newPosition: { x: window.scrollX, y: window.scrollY }
         });
       }
@@ -776,6 +787,13 @@ const helpers = {
           inline: 'nearest'
         });
 
+        // Wait for scroll to complete
+        if (behavior === 'smooth') {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
         const rect = element.getBoundingClientRect();
         return respondWith({
           scrolled: true,
@@ -785,13 +803,24 @@ const helpers = {
 
       // Priority 3: Scroll to coordinates
       if (typeof x === 'number' || typeof y === 'number') {
+        const oldPosition = { x: window.scrollX, y: window.scrollY };
+
         window.scrollTo({
           left: x ?? window.scrollX,
           top: y ?? window.scrollY,
           behavior: behavior
         });
+
+        // Wait for scroll to complete
+        if (behavior === 'smooth') {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
         return respondWith({
           scrolled: true,
+          oldPosition: oldPosition,
           newPosition: { x: window.scrollX, y: window.scrollY }
         });
       }

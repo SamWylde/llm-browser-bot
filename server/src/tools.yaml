@@ -403,9 +403,10 @@ tools:
 
   scroll:
     description: >-
-      Scroll the page. Supports three modes: (1) direction-based scrolling 
-      by full page height ("up" or "down"), (2) scroll element into view 
+      Scroll the page. Supports three modes: (1) direction-based scrolling
+      by full page height ("up" or "down"), (2) scroll element into view
       using CSS selector or XPath, or (3) scroll to specific x/y coordinates.
+      Returns both old and new scroll positions for verification.
     required: [tabId]
     properties:
       tabId: *tabId
@@ -422,8 +423,8 @@ tools:
         description: Y coordinate to scroll to
       behavior:
         type: string
-        description: Scroll behavior
-        default: smooth
+        description: Scroll behavior (default auto for instant scroll)
+        default: auto
         enum: [auto, smooth]
       timeout:
         type: number
