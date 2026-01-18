@@ -27,7 +27,7 @@ export async function scrolling_screenshot({ tabId }, {
   // Scroll to top first
   await chrome.tabs.sendMessage(tabId, {
     command: 'scroll',
-    params: { y: 0, behavior: 'instant' }
+    params: { y: 0, behavior: 'auto' }
   });
 
   // Wait for scroll to complete
@@ -95,7 +95,7 @@ export async function scrolling_screenshot({ tabId }, {
 
       await chrome.tabs.sendMessage(tabId, {
         command: 'scroll',
-        params: { y: currentScroll, behavior: 'instant' }
+        params: { y: currentScroll, behavior: 'auto' }
       });
 
       // Wait for content to load
