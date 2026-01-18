@@ -78,6 +78,7 @@ interface MCPConnection {
   initialized: boolean;
   metrics: MCPConnectionMetrics;
   heartbeatTimer?: NodeJS.Timeout;
+  sessionId?: string; // Store sessionId for reliable access in heartbeat
 }
 
 export class MCPServerManager {
@@ -713,9 +714,12 @@ export class MCPServerManager {
 
     const sendHeartbeat = async () => {
       try {
+        logger.log(`Heartbeat tick for connection ${connection.id}, initialized: ${connection.initialized}, sessionId: ${connection.sessionId || 'NOT SET'}`);
+
         if (connection.initialized) {
           // Send a ping notification to keep the GET SSE stream alive
-          // This sends data through the SSE stream, preventing HTTP/1.1 proxy timeout
+          // NOTE: ChatGPT MAY not open GET SSE stream - this is optional per MCP spec
+          // The critical part is updating lastActivityAt below, not the notification
           await connection.server.notification({
             method: 'notifications/heartbeat',
             params: {
@@ -723,7 +727,7 @@ export class MCPServerManager {
             }
           }).catch(error => {
             // If notification fails, connection might be closed
-            logger.warn(`Heartbeat failed for connection ${connection.id}:`, error);
+            logger.warn(`Heartbeat notification failed for connection ${connection.id}:`, error.message || error);
             if (connection.heartbeatTimer) {
               clearInterval(connection.heartbeatTimer);
               connection.heartbeatTimer = undefined;
@@ -734,17 +738,25 @@ export class MCPServerManager {
           this.touchConnection(connection.id);
 
           // CRITICAL: Update HTTP session lastActivityAt to prevent session cleanup
-          const transport = connection.transport as StreamableHTTPServerTransport;
-          if (transport.sessionId) {
-            const sessionInfo = this.httpSessions.get(transport.sessionId);
+          // THIS IS THE KEY - session cleanup checks this timestamp
+          if (connection.sessionId) {
+            const sessionInfo = this.httpSessions.get(connection.sessionId);
             if (sessionInfo) {
+              const oldLastActivity = sessionInfo.lastActivityAt;
               sessionInfo.lastActivityAt = Date.now();
-              logger.log(`Heartbeat sent for HTTP session ${transport.sessionId}`);
+              logger.log(`✓ Heartbeat updated session ${connection.sessionId}: lastActivityAt ${oldLastActivity} → ${sessionInfo.lastActivityAt}`);
+            } else {
+              logger.error(`✗ Heartbeat: Session ${connection.sessionId} NOT FOUND in httpSessions map (size: ${this.httpSessions.size})`);
             }
+          } else {
+            logger.error(`✗ Heartbeat: Connection ${connection.id} has no sessionId set`);
           }
+        } else {
+          logger.warn(`Heartbeat skipped for connection ${connection.id}: not initialized yet`);
         }
       } catch (error) {
         // Heartbeat failed, connection likely closed
+        logger.error(`Heartbeat exception for connection ${connection.id}:`, error);
         if (connection.heartbeatTimer) {
           clearInterval(connection.heartbeatTimer);
           connection.heartbeatTimer = undefined;
@@ -821,6 +833,9 @@ export class MCPServerManager {
         // Store the session for future requests
         const conn = this.connections.get(connectionId);
         if (conn) {
+          // CRITICAL: Store sessionId in connection for reliable heartbeat access
+          conn.sessionId = newSessionId;
+
           this.httpSessions.set(newSessionId, {
             sessionId: newSessionId,
             connectionId,
